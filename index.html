@@ -61,6 +61,7 @@
         const IconPieChart = (p) => <SVGIcon {...p}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></SVGIcon>;
         const IconBrain = (p) => <SVGIcon {...p}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></SVGIcon>;
         const IconKey = (p) => <SVGIcon {...p}><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></SVGIcon>;
+        const IconCopy = (p) => <SVGIcon {...p}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></SVGIcon>;
         const IconSparkles = (p) => <SVGIcon {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></SVGIcon>;
         const IconShieldAlert = (p) => <SVGIcon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></SVGIcon>;
         const IconChevronDown = (p) => <SVGIcon {...p}><path d="m6 9 6 6 6-6"/></SVGIcon>;
@@ -441,7 +442,7 @@
             setTimeout(() => setNotification(''), 3000);
           };
 
-          // AI Fetch
+        // AI Fetch
           const fetchInsights = async (promptType) => {
               if (!apiKey) {
                   showNotification("Please enter an API key first.");
@@ -451,16 +452,22 @@
               setAiResponse('');
               
               try {
-                  const taskString = tasks.map(t => `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${t.scheduleType === 'Absolute Date' ? `${t.startDate} to ${t.endDate}` : `T+${t.triggerOffset} (${t.triggerEvent})`}, Dep: ${t.dependency} ${t.department}]`).join('\n');
+                  // FIX: Clean up task string to prevent "undefined undefined" confusing the AI
+                  const taskString = tasks.map(t => {
+                      const sched = t.scheduleType === 'Absolute Date' ? `${t.startDate || 'No Start'} to ${t.endDate || 'No End'}` : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
+                      const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
+                      return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
+                  }).join('\n');
                   
                   let specificPrompt = "";
-                  if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan, starting with - 1. Listing of key data, ratio, effort needed in Q1-Q4 2. State potential bottlenecks or areas of pressure that may be present 3. State assumptions made when processing any analytical parts of the data 4. Suggest where items could be better moved around or placed to ensure proper management of resourcs throughout the FY. Output your analyses in a clear an concise manner, using line breaks, bold and font size where required so that it can be effectively read as a summary report";
+                  if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY.";
                   else if (promptType === 'Bottlenecks') specificPrompt = "Identify potential bottlenecks in this compliance workplan based strictly on task dependencies, external departments, status, and overlapping schedules.";
                   else if (promptType === 'Actions') specificPrompt = "Based on the current status and upcoming deadlines, recommend the immediate top 5 strategic actions the team must take to ensure regulatory compliance.";
                   else if (promptType === 'Deliverables') specificPrompt = "Forecast the projected deliverables and key compliance milestones over the next 3-6 months based on the provided timeline.";
                   else if (promptType === 'Custom') specificPrompt = customPrompt;
 
-                  const finalPrompt = `${specificPrompt}\n\nCRITICAL OUTPUT INSTRUCTIONS:\n1. Do NOT include any introductory preamble, conversational filler, or reference to your role as an expert (e.g., do not say "As a compliance expert..." or "Here is the analysis..."). Start immediately with the analysis.\n2. Do NOT use bullet points (- or *) or numbered lists (1., 2., etc.). Write strictly in cohesive paragraphs.\n3. Do NOT use markdown tables or raw tables.\n4. Use markdown headers (###) to separate sections, but keep all content as plain paragraphs.\n\nWorkplan Data:\n${taskString}`;
+                  // NEW: Forcing the AI to use bullet points and bolding
+                  const finalPrompt = `${specificPrompt}\n\nCRITICAL OUTPUT INSTRUCTIONS:\n1. Do NOT include introductory filler (e.g., "Here is the analysis").\n2. USE markdown formatting extensively for readability. Use bolding (**text**) for emphasis and key metrics.\n3. USE bullet points (-) and numbered lists to break up dense information into scannable points.\n4. Ensure the final output is highly structured and easy to read as a professional executive summary.\n\nWorkplan Data:\n${taskString}`;
 
                   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                       method: 'POST',
@@ -1290,14 +1297,29 @@
 
                            </div>
 
-                           <div className="flex-1 bg-white p-8 rounded-xl shadow-sm border border-slate-200 overflow-auto relative min-h-[300px]">
+<div className="flex-1 bg-white p-8 rounded-xl shadow-sm border border-slate-200 overflow-auto relative min-h-[300px] group">
                                {isAiLoading ? (
                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-indigo-600 bg-white/80 backdrop-blur-sm z-10 rounded-xl">
                                         <IconRefreshCw size={32} className="animate-spin mb-3" />
                                         <p className="font-bold animate-pulse">Consultant is analyzing data...</p>
                                    </div>
                                ) : aiResponse ? (
-                                   <MarkdownParser text={aiResponse} />
+                                   <>
+                                       <button 
+                                          onClick={() => {
+                                              navigator.clipboard.writeText(aiResponse);
+                                              showNotification("AI Insights copied to clipboard!");
+                                          }} 
+                                          className="absolute top-4 right-4 bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-sm"
+                                          title="Copy Raw Text"
+                                        >
+                                          <IconCopy size={16} /> Copy to Clipboard
+                                       </button>
+                                       {/* Adding inline styles to ensure lists render bullets */}
+                                       <div className="prose prose-slate max-w-none [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5">
+                                           <MarkdownParser text={aiResponse} />
+                                       </div>
+                                   </>
                                ) : (
                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
                                        <IconBrain size={48} className="mb-4" />
