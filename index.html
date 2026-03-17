@@ -213,20 +213,27 @@
             if (savedKey) setApiKey(savedKey);
           }, []);
 
-          // FIREBASE SAVE EFFECT (Runs whenever tasks change)
-          useEffect(() => {
-            if (!loading) {
-                if (isRemoteUpdate.current) {
-                    // Reset the flag if the data came from Firebase
-                    isRemoteUpdate.current = false;
-                } else {
-                    // This was a local change, send it to the cloud!
-                    if (window.firebaseSet && window.firebaseRef) {
-                        window.firebaseSet(window.firebaseRef, tasks);
-                    }
-                }
-            }
-          }, [tasks, loading]);
+// FIREBASE SAVE EFFECT (Runs whenever tasks change)
+useEffect(() => {
+  if (!loading) {
+      if (isRemoteUpdate.current) {
+          // Reset the flag if the data came from Firebase
+          isRemoteUpdate.current = false;
+      } else {
+          // This was a local change, send it to the cloud!
+          if (window.firebaseSet && window.firebaseRef) {
+              // SCRUBBER: Removes any undefined values that cause Firebase to silently fail
+              const cleanTasks = JSON.parse(JSON.stringify(tasks));
+              
+              window.firebaseSet(window.firebaseRef, cleanTasks)
+                  .catch(error => {
+                      console.error("Firebase Save Error:", error);
+                      alert("Warning: Could not save to cloud! Check console.");
+                  });
+          }
+      }
+  }
+}, [tasks, loading]);
 
           useEffect(() => {
             const handleClickOutside = (event) => {
@@ -268,26 +275,45 @@
               setDragState(prev => ({ ...prev, shiftDays }));
             };
 
-            const handleMouseUp = () => {
-              if (dragState.shiftDays !== 0) {
-                let nStart = new Date(dragState.initialStart);
-                let nEnd = new Date(dragState.initialEnd);
+const handleMouseUp = () => {
+  if (dragState.shiftDays !== 0) {
+    let nStart = new Date(dragState.initialStart);
+    let nEnd = new Date(dragState.initialEnd);
 
-                if (dragState.mode === 'move') {
-                  nStart.setDate(nStart.getDate() + dragState.shiftDays);
-                  nEnd.setDate(nEnd.getDate() + dragState.shiftDays);
-                  nStart = snapDate(nStart);
-                  nEnd = snapDate(nEnd);
-                  if (nStart > nEnd) nEnd = new Date(nStart);
-                } else if (dragState.mode === 'resize-left') {
-                  nStart.setDate(nStart.getDate() + dragState.shiftDays);
-                  nStart = snapDate(nStart);
-                  if (nStart > nEnd) nStart = new Date(nEnd); 
-                } else if (dragState.mode === 'resize-right') {
-                  nEnd.setDate(nEnd.getDate() + dragState.shiftDays);
-                  nEnd = snapDate(nEnd);
-                  if (nEnd < nStart) nEnd = new Date(nStart); 
-                }
+    if (dragState.mode === 'move') {
+      nStart.setDate(nStart.getDate() + dragState.shiftDays);
+      nEnd.setDate(nEnd.getDate() + dragState.shiftDays);
+      nStart = snapDate(nStart);
+      nEnd = snapDate(nEnd);
+      if (nStart > nEnd) nEnd = new Date(nStart);
+    } else if (dragState.mode === 'resize-left') {
+      nStart.setDate(nStart.getDate() + dragState.shiftDays);
+      nStart = snapDate(nStart);
+      if (nStart > nEnd) nStart = new Date(nEnd); 
+    } else if (dragState.mode === 'resize-right') {
+      nEnd.setDate(nEnd.getDate() + dragState.shiftDays);
+      nEnd = snapDate(nEnd);
+      if (nEnd < nStart) nEnd = new Date(nStart); 
+    }
+
+    // NEW: Helper to force date strings to stay in your local timezone!
+    const formatLocal = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    setTasks(prevTasks => prevTasks.map(t => {
+        if (t.id === dragState.id) {
+            return { ...t, startDate: formatLocal(nStart), endDate: formatLocal(nEnd) };
+        }
+        return t;
+    }));
+    showNotification("Timeline snapped & updated to Cloud.");
+  }
+  setDragState(null);
+};
 
                 setTasks(prevTasks => prevTasks.map(t => {
                     if (t.id === dragState.id) {
