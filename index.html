@@ -61,15 +61,12 @@
         const IconPieChart = (p) => <SVGIcon {...p}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></SVGIcon>;
         const IconBrain = (p) => <SVGIcon {...p}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></SVGIcon>;
         const IconKey = (p) => <SVGIcon {...p}><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></SVGIcon>;
-        const IconCopy = (p) => <SVGIcon {...p}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></SVGIcon>;
         const IconSparkles = (p) => <SVGIcon {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></SVGIcon>;
         const IconShieldAlert = (p) => <SVGIcon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></SVGIcon>;
         const IconChevronDown = (p) => <SVGIcon {...p}><path d="m6 9 6 6 6-6"/></SVGIcon>;
         const IconExternalLink = (p) => <SVGIcon {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></SVGIcon>;
         const IconShield = (p) => <SVGIcon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></SVGIcon>;
         const IconHelpCircle = (p) => <SVGIcon {...p}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></SVGIcon>;
-        const IconZap = (p) => <SVGIcon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></SVGIcon>;
-        const IconTarget = (p) => <SVGIcon {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></SVGIcon>;
 
 
         // --- 2. Constants ---
@@ -179,7 +176,6 @@
                     appId: "1:94949340652:web:f49aa96d667480e7433cc9"
                 };
 
-                // Initialize Firebase only if it hasn't been initialized yet
                 if (!window.firebase.apps.length) {
                     window.firebase.initializeApp(firebaseConfig);
                 }
@@ -187,13 +183,11 @@
                 const db = window.firebase.database();
                 const tasksRef = db.ref('sharedData/tasks');
 
-                // Save reference globally so the save effect can reach it
                 window.firebaseDbRef = tasksRef;
 
-                // Listen for changes from the cloud
                 tasksRef.on('value', (snapshot) => {
                     const data = snapshot.val();
-                    isRemoteUpdate.current = true; // Tell the app this came from the cloud
+                    isRemoteUpdate.current = true; 
                     if (data) {
                         setTasks(data);
                     } else {
@@ -210,16 +204,14 @@
             if (savedKey) setApiKey(savedKey);
           }, []);
 
-          // FIREBASE SAVE EFFECT (Runs whenever tasks change locally)
+          // FIREBASE SAVE EFFECT
           useEffect(() => {
             if (!loading) {
                 if (isRemoteUpdate.current) {
-                    // It came from the cloud, don't send it back up (prevents infinite loops)
                     isRemoteUpdate.current = false;
                 } else {
-                    // This was a local change, send it to the cloud!
                     if (window.firebaseDbRef) {
-                        const cleanTasks = JSON.parse(JSON.stringify(tasks)); // Scrubs the data for Firebase
+                        const cleanTasks = JSON.parse(JSON.stringify(tasks)); 
                         window.firebaseDbRef.set(cleanTasks).catch(error => {
                             console.error("Firebase Save Error:", error);
                             showNotification("Error: Could not save to cloud.");
@@ -290,7 +282,6 @@
                   if (nEnd < nStart) nEnd = new Date(nStart); 
                 }
 
-                // Helper to format local timezone correctly
                 const formatLocal = (d) => {
                     const year = d.getFullYear();
                     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -442,7 +433,7 @@
             setTimeout(() => setNotification(''), 3000);
           };
 
-        // AI Fetch
+          // AI Fetch
           const fetchInsights = async (promptType) => {
               if (!apiKey) {
                   showNotification("Please enter an API key first.");
@@ -452,9 +443,9 @@
               setAiResponse('');
               
               try {
-                  // FIX: Clean up task string to prevent "undefined undefined" confusing the AI
+                  // FIX: Clean up task string to prevent "undefined" confusing the AI
                   const taskString = tasks.map(t => {
-                      const sched = t.scheduleType === 'Absolute Date' ? `${t.startDate || 'No Start'} to ${t.endDate || 'No End'}` : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
+                      const sched = t.scheduleType === 'Absolute Date' ? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
                       const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
                       return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
                   }).join('\n');
@@ -466,7 +457,7 @@
                   else if (promptType === 'Deliverables') specificPrompt = "Forecast the projected deliverables and key compliance milestones over the next 3-6 months based on the provided timeline.";
                   else if (promptType === 'Custom') specificPrompt = customPrompt;
 
-                  // NEW: Forcing the AI to use bullet points and bolding
+                  // FIX: Updated formatting instructions
                   const finalPrompt = `${specificPrompt}\n\nCRITICAL OUTPUT INSTRUCTIONS:\n1. Do NOT include introductory filler (e.g., "Here is the analysis").\n2. USE markdown formatting extensively for readability. Use bolding (**text**) for emphasis and key metrics.\n3. USE bullet points (-) and numbered lists to break up dense information into scannable points.\n4. Ensure the final output is highly structured and easy to read as a professional executive summary.\n\nWorkplan Data:\n${taskString}`;
 
                   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -728,6 +719,7 @@
 
           const isDateInvalid = newTask.scheduleType === 'Absolute Date' && newTask.startDate && newTask.endDate && new Date(newTask.startDate) > new Date(newTask.endDate);
 
+          // NOTE: Removed select-none from the main wrapper, applied it only to the timeline.
           return (
             <div ref={containerRef} className={`flex flex-col bg-slate-50 text-slate-900 font-sans relative ${isFullscreen ? 'fixed inset-0 z-[100] w-full h-full' : (isPdfMode ? 'w-full min-h-screen h-auto bg-white' : 'h-screen')}`}>
               
@@ -871,8 +863,8 @@
                 )}
       </div>
 
-      {/* Main Content Area Container */}
-      <div className={`flex-1 flex flex-col p-4 md:p-6 select-none ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
+      {/* Main Content Area Container (select-none removed for text highlighting) */}
+      <div className={`flex-1 flex flex-col p-4 md:p-6 ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
         
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
@@ -881,9 +873,9 @@
           </div>
         ) : (
           <>
-            {/* Timeline View */}
+            {/* Timeline View (select-none added here to protect dragging) */}
             {view === 'timeline' && (
-              <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
+              <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col select-none ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
                 <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                   <div className="flex flex-wrap gap-4 text-xs">
                     {CLASSIFICATIONS.map(c => (
@@ -1275,7 +1267,7 @@
                                    </button>
                                </div>
                                
-                               {/* NEW: Custom Prompt Area */}
+                               {/* Custom Prompt Area */}
                                <div className="mt-4 pt-4 border-t border-slate-100">
                                    <label className="block text-sm font-bold text-slate-700 mb-2">Or ask your own question:</label>
                                    <textarea 
@@ -1297,29 +1289,16 @@
 
                            </div>
 
-<div className="flex-1 bg-white p-8 rounded-xl shadow-sm border border-slate-200 overflow-auto relative min-h-[300px] group">
+                           <div className="flex-1 bg-white p-8 rounded-xl shadow-sm border border-slate-200 overflow-auto relative min-h-[300px] select-text">
                                {isAiLoading ? (
                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-indigo-600 bg-white/80 backdrop-blur-sm z-10 rounded-xl">
                                         <IconRefreshCw size={32} className="animate-spin mb-3" />
                                         <p className="font-bold animate-pulse">Consultant is analyzing data...</p>
                                    </div>
                                ) : aiResponse ? (
-                                   <>
-                                       <button 
-                                          onClick={() => {
-                                              navigator.clipboard.writeText(aiResponse);
-                                              showNotification("AI Insights copied to clipboard!");
-                                          }} 
-                                          className="absolute top-4 right-4 bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-sm"
-                                          title="Copy Raw Text"
-                                        >
-                                          <IconCopy size={16} /> Copy to Clipboard
-                                       </button>
-                                       {/* Adding inline styles to ensure lists render bullets */}
-                                       <div className="prose prose-slate max-w-none [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5">
-                                           <MarkdownParser text={aiResponse} />
-                                       </div>
-                                   </>
+                                   <div className="prose prose-slate max-w-none [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 select-text">
+                                       <MarkdownParser text={aiResponse} />
+                                   </div>
                                ) : (
                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
                                        <IconBrain size={48} className="mb-4" />
