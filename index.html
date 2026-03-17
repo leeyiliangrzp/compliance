@@ -443,15 +443,19 @@
               setAiResponse('');
               
               try {
-                  // FIX: Clean up task string to prevent "undefined" confusing the AI
-                  const taskString = tasks.map(t => {
-                      const sched = t.scheduleType === 'Absolute Date' ? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
-                      const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
-                      return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
-                  }).join('\n');
-                  
+                            // FIX: Clean up task string to properly fallback to Absolute Date for older tasks
+const taskString = tasks.map(t => {
+    // Added the (t.scheduleType || 'Absolute Date') fallback here!
+    const sched = (t.scheduleType || 'Absolute Date') === 'Absolute Date' 
+        ? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` 
+        : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
+    
+    const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
+    
+    return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
+}).join('\n');
                   let specificPrompt = "";
-                  if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY.";
+                  if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY, telling me which item to switch where or allocation suggestions";
                   else if (promptType === 'Bottlenecks') specificPrompt = "Identify potential bottlenecks in this compliance workplan based strictly on task dependencies, external departments, status, and overlapping schedules.";
                   else if (promptType === 'Actions') specificPrompt = "Based on the current status and upcoming deadlines, recommend the immediate top 5 strategic actions the team must take to ensure regulatory compliance.";
                   else if (promptType === 'Deliverables') specificPrompt = "Forecast the projected deliverables and key compliance milestones over the next 3-6 months based on the provided timeline.";
