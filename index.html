@@ -1421,5 +1421,49 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<ComplianceGantt />);
     </script>
+    <script type="module">
+  // 1. Import the Firebase tools from Google's servers
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+  // 2. PASTE YOUR CONFIG HERE (From Step 2)
+  const firebaseConfig = {
+  apiKey: "AIzaSyDBUGby8pv_YzFrED7kQm1nMydxwbzArew",
+  authDomain: "compliance-json-storage.firebaseapp.com",
+  databaseURL: "https://compliance-json-storage-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "compliance-json-storage",
+  storageBucket: "compliance-json-storage.firebasestorage.app",
+  messagingSenderId: "94949340652",
+  appId: "1:94949340652:web:f49aa96d667480e7433cc9"
+  };
+
+  // 3. Turn on Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // 4. Point to a specific folder in your database (e.g., 'sharedData')
+  const myDataRef = ref(db, 'sharedData');
+
+  // --- REPLACING LOCAL STORAGE ---
+
+  // INSTEAD OF localStorage.setItem(): Use set()
+  // Run this function when your user clicks your "Save" button
+  window.saveToCloud = function(dataToSave) {
+    set(myDataRef, {
+      content: dataToSave
+    });
+  };
+
+  // INSTEAD OF localStorage.getItem(): Use onValue()
+  // This magically runs EVERY TIME someone saves new data
+  onValue(myDataRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      console.log("New data from cloud:", data.content);
+      // Put your code here to update the HTML on the screen!
+      // Example: document.getElementById('myTextBox').value = data.content;
+    }
+  });
+</script>
 </body>
 </html>
