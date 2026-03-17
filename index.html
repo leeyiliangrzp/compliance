@@ -443,17 +443,57 @@
               setAiResponse('');
               
               try {
-                            // FIX: Clean up task string to properly fallback to Absolute Date for older tasks
-const taskString = tasks.map(t => {
-    // Added the (t.scheduleType || 'Absolute Date') fallback here!
-    const sched = (t.scheduleType || 'Absolute Date') === 'Absolute Date' 
-        ? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` 
-        : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
-    
-    const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
-    
-    return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
-}).join('\n');
+                            // AI Fetch
+          const fetchInsights = async (promptType) => {
+              if (!apiKey) {
+                  showNotification("Please enter an API key first.");
+                  return;
+              }
+              setIsAiLoading(true);
+              setAiResponse('');
+              
+              try {
+                  // FIX: Bulletproof data parser. If it has dates, force it to be an Absolute Schedule.
+                  const taskString = tasks.map(t => {
+                      const isFixedDate = !t.scheduleType || t.scheduleType.includes('Absolute') || (t.startDate && t.endDate);
+                      
+                      const sched = isFixedDate 
+                          ? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` 
+                          : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
+                      
+                      const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
+                      
+                      return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
+                  }).join('\n');
+                  
+                  // DEBUGGING: Press F12 and look at the Console to see EXACTLY what the AI is reading!
+                  console.log("---- RAW DATA SENT TO AI ----\n", taskString);
+                  
+                  let specificPrompt = "";
+                  if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY. For example, suggest things like Move item 6 to Q3, Move item 3 to Q2 etc with explanations as to why this is suggested";
+                  else if (promptType === 'Bottlenecks') specificPrompt = "Identify potential bottlenecks in this compliance workplan based strictly on task dependencies, external departments, status, and overlapping schedules.";
+                  else if (promptType === 'Actions') specificPrompt = "Based on the current status and upcoming deadlines, recommend the immediate top 5 strategic actions the team must take to ensure regulatory compliance.";
+                  else if (promptType === 'Deliverables') specificPrompt = "Forecast the projected deliverables and key compliance milestones over the next 3-6 months based on the provided timeline.";
+                  else if (promptType === 'Custom') specificPrompt = customPrompt;
+
+                  // Formatting instructions
+                  const finalPrompt = `${specificPrompt}\n\nCRITICAL OUTPUT INSTRUCTIONS:\n1. Do NOT include introductory filler (e.g., "Here is the analysis").\n2. USE markdown formatting extensively for readability. Use bolding (**text**) for emphasis and key metrics.\n3. USE bullet points (-) and numbered lists to break up dense information into scannable points.\n4. Ensure the final output is highly structured and easy to read as a professional executive summary.\n\nWorkplan Data:\n${taskString}`;
+
+                  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] })
+                  });
+                  
+                  const data = await response.json();
+                  if (data.error) throw new Error(data.error.message);
+                  
+                  setAiResponse(data.candidates[0].content.parts[0].text);
+              } catch (error) {
+                  setAiResponse(`### Error Fetching Insights\n\nThere was a problem communicating with the AI service.\n\n*Error details: ${error.message}*`);
+              }
+              setIsAiLoading(false);
+          };
                   let specificPrompt = "";
                   if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY, telling me which item to switch where or allocation suggestions";
                   else if (promptType === 'Bottlenecks') specificPrompt = "Identify potential bottlenecks in this compliance workplan based strictly on task dependencies, external departments, status, and overlapping schedules.";
