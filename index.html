@@ -13,6 +13,9 @@
 
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .overflow-visible { overflow: visible !important; }
@@ -163,46 +166,44 @@
 
           // Setup effect hooks
           useEffect(() => {
-            // FIREBASE CLOUD SYNC INITIALIZATION
-            const setupFirebase = async () => {
-                try {
-                    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js");
-                    const { getDatabase, ref, set, onValue } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js");
+            // FIREBASE CLOUD SYNC INITIALIZATION (COMPAT MODE)
+            try {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDBUGby8pv_YzFrED7kQm1nMydxwbzArew",
+                    authDomain: "compliance-json-storage.firebaseapp.com",
+                    databaseURL: "https://compliance-json-storage-default-rtdb.asia-southeast1.firebasedatabase.app",
+                    projectId: "compliance-json-storage",
+                    storageBucket: "compliance-json-storage.firebasestorage.app",
+                    messagingSenderId: "94949340652",
+                    appId: "1:94949340652:web:f49aa96d667480e7433cc9"
+                };
 
-                    const firebaseConfig = {
-                        apiKey: "AIzaSyDBUGby8pv_YzFrED7kQm1nMydxwbzArew",
-                        authDomain: "compliance-json-storage.firebaseapp.com",
-                        databaseURL: "https://compliance-json-storage-default-rtdb.asia-southeast1.firebasedatabase.app",
-                        projectId: "compliance-json-storage",
-                        storageBucket: "compliance-json-storage.firebasestorage.app",
-                        messagingSenderId: "94949340652",
-                        appId: "1:94949340652:web:f49aa96d667480e7433cc9"
-                    };
-
-                    const app = initializeApp(firebaseConfig);
-                    const db = getDatabase(app);
-                    const tasksRef = ref(db, 'sharedData/tasks');
-
-                    window.firebaseSet = set;
-                    window.firebaseRef = tasksRef;
-
-                    onValue(tasksRef, (snapshot) => {
-                        const data = snapshot.val();
-                        isRemoteUpdate.current = true; // Tell the app this came from the cloud
-                        if (data) {
-                            setTasks(data);
-                        } else {
-                            setTasks([]); 
-                        }
-                        setLoading(false);
-                    });
-                } catch (error) {
-                    console.error("Firebase Initialization Error:", error);
-                    setLoading(false);
+                // Initialize Firebase only if it hasn't been initialized yet
+                if (!window.firebase.apps.length) {
+                    window.firebase.initializeApp(firebaseConfig);
                 }
-            };
 
-            setupFirebase();
+                const db = window.firebase.database();
+                const tasksRef = db.ref('sharedData/tasks');
+
+                // Save reference globally so the save effect can reach it
+                window.firebaseDbRef = tasksRef;
+
+                // Listen for changes from the cloud
+                tasksRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    isRemoteUpdate.current = true; // Tell the app this came from the cloud
+                    if (data) {
+                        setTasks(data);
+                    } else {
+                        setTasks([]); 
+                    }
+                    setLoading(false);
+                });
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                setLoading(false);
+            }
 
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) setApiKey(savedKey);
@@ -216,9 +217,9 @@
                     isRemoteUpdate.current = false;
                 } else {
                     // This was a local change, send it to the cloud!
-                    if (window.firebaseSet && window.firebaseRef) {
+                    if (window.firebaseDbRef) {
                         const cleanTasks = JSON.parse(JSON.stringify(tasks)); // Scrubs the data for Firebase
-                        window.firebaseSet(window.firebaseRef, cleanTasks).catch(error => {
+                        window.firebaseDbRef.set(cleanTasks).catch(error => {
                             console.error("Firebase Save Error:", error);
                             showNotification("Error: Could not save to cloud.");
                         });
