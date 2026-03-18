@@ -762,8 +762,14 @@ document.head.appendChild(script);
 }
 
 const element = containerRef.current;
+
+// --- NEW: Generate Date String for Filename ---
+const dateObj = new Date();
+const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
 const opt = {
-margin:       0.3, filename: 'Compliance-Workplan-FY26-27.pdf',
+margin:       0.3, 
+filename:     `Compliance-Workplan_${dateStr}.pdf`, // Dynamically named!
 image:        { type: 'jpeg', quality: 0.98 },
 html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: element.scrollWidth },
 jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' }
@@ -844,12 +850,22 @@ return (
 <div className="bg-white border-b border-slate-200 shadow-sm flex flex-col z-20 shrink-0">
 <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 {!isFullscreen && (
+<div className="flex justify-between w-full">
 <div>
 <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
 Compliance Workplan FY 26/27
 <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1"><IconGlobe size={10} /> Cloud Sync Active</span>
 </h1>
 <p className="text-base font-medium text-blue-600 mt-0.5">Razorpay Singapore</p>
+</div>
+
+{/* NEW: Date Stamp that only renders onto the PDF */}
+{isPdfMode && (
+<div className="text-right flex flex-col justify-center pr-8">
+<span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Generated On</span>
+<span className="text-sm font-black text-slate-700">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+</div>
+)}
 </div>
 )}
 
