@@ -483,8 +483,16 @@ const fetchInsights = async (promptType) => {
         } else {
             response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeKey}` },
-                body: JSON.stringify({ model: "meta-llama/llama-3.1-8b-instruct:free", messages: [{ role: "user", content: finalPrompt }] })
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${activeKey}`,
+                    'HTTP-Referer': window.location.href, // OpenRouter prefers this header
+                    'X-Title': 'Compliance Workplan Suite'
+                },
+                body: JSON.stringify({ 
+                    model: "openrouter/free", // This auto-routes to the best available free model so it never breaks
+                    messages: [{ role: "user", content: finalPrompt }] 
+                })
             });
             data = await response.json();
             if (data.error) throw new Error(data.error.message);
