@@ -147,7 +147,6 @@ classification: 'All', status: 'All', dependency: 'All', department: 'All'
 });
 const [sortBy, setSortBy] = useState('default'); 
 const [timelineScale, setTimelineScale] = useState('months');
-const [lastUpdated, setLastUpdated] = useState(new Date()); // <-- NEW STATE
 
 // --- DUAL AI ENGINE STATE ---
 const [hasSavedKeys, setHasSavedKeys] = useState(!!(localStorage.getItem('gemini_api_key') || localStorage.getItem('openrouter_api_key')));
@@ -169,62 +168,62 @@ const isRemoteUpdate = useRef(false);
 
 // --- NEW: UNDO/REDO LOGIC ---
 const saveToHistory = (newTasks) => {
-    setHistoryState(prev => {
-        const nextStack = prev.stack.slice(0, prev.step + 1);
-        const stateStr = JSON.stringify(newTasks);
-        // Avoid duplicate pushes if no actual data changed
-        if (nextStack.length > 0 && nextStack[nextStack.length - 1] === stateStr) {
-            return prev;
-        }
-        nextStack.push(stateStr);
-        if (nextStack.length > 50) nextStack.shift(); 
-        return { stack: nextStack, step: nextStack.length - 1 };
-    });
+setHistoryState(prev => {
+const nextStack = prev.stack.slice(0, prev.step + 1);
+const stateStr = JSON.stringify(newTasks);
+// Avoid duplicate pushes if no actual data changed
+if (nextStack.length > 0 && nextStack[nextStack.length - 1] === stateStr) {
+return prev;
+}
+nextStack.push(stateStr);
+if (nextStack.length > 50) nextStack.shift(); 
+return { stack: nextStack, step: nextStack.length - 1 };
+});
 };
 
 const undo = () => {
-    setHistoryState(prev => {
-        if (prev.step > 0) {
-            const newStep = prev.step - 1;
-            const prevTasks = JSON.parse(prev.stack[newStep]);
-            isUndoRedo.current = true; 
-            setTasks(prevTasks);
-            showNotification("Action Undone");
-            return { ...prev, step: newStep };
-        }
-        return prev;
-    });
+setHistoryState(prev => {
+if (prev.step > 0) {
+const newStep = prev.step - 1;
+const prevTasks = JSON.parse(prev.stack[newStep]);
+isUndoRedo.current = true; 
+setTasks(prevTasks);
+showNotification("Action Undone");
+return { ...prev, step: newStep };
+}
+return prev;
+});
 };
 
 const redo = () => {
-    setHistoryState(prev => {
-        if (prev.step < prev.stack.length - 1) {
-            const newStep = prev.step + 1;
-            const nextTasks = JSON.parse(prev.stack[newStep]);
-            isUndoRedo.current = true;
-            setTasks(nextTasks);
-            showNotification("Action Redone");
-            return { ...prev, step: newStep };
-        }
-        return prev;
-    });
+setHistoryState(prev => {
+if (prev.step < prev.stack.length - 1) {
+const newStep = prev.step + 1;
+const nextTasks = JSON.parse(prev.stack[newStep]);
+isUndoRedo.current = true;
+setTasks(nextTasks);
+showNotification("Action Redone");
+return { ...prev, step: newStep };
+}
+return prev;
+});
 };
 
 // Keyboard Shortcuts Listener
 useEffect(() => {
-    const handleKeyDown = (e) => {
-        const isMod = e.ctrlKey || e.metaKey;
-        if (isMod && e.key.toLowerCase() === 'z') {
-            e.preventDefault();
-            if (e.shiftKey) redo(); else undo();
-        }
-        if (isMod && e.key.toLowerCase() === 'y') {
-            e.preventDefault();
-            redo();
-        }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+const handleKeyDown = (e) => {
+const isMod = e.ctrlKey || e.metaKey;
+if (isMod && e.key.toLowerCase() === 'z') {
+e.preventDefault();
+if (e.shiftKey) redo(); else undo();
+}
+if (isMod && e.key.toLowerCase() === 'y') {
+e.preventDefault();
+redo();
+}
+};
+window.addEventListener('keydown', handleKeyDown);
+return () => window.removeEventListener('keydown', handleKeyDown);
 }, [historyState]); // Re-bind on state change to ensure fresh values
 
 // Setup effect hooks
@@ -258,10 +257,10 @@ setTasks(incomingTasks);
 
 // Initialize history safely on the first load
 setHistoryState(prev => {
-    if (prev.stack.length === 0) {
-        return { stack: [JSON.stringify(incomingTasks)], step: 0 };
-    }
-    return prev;
+if (prev.stack.length === 0) {
+return { stack: [JSON.stringify(incomingTasks)], step: 0 };
+}
+return prev;
 });
 
 setLoading(false);
@@ -275,7 +274,6 @@ setLoading(false);
 // FIREBASE SAVE EFFECT (UPDATED WITH HISTORY TRACKING)
 useEffect(() => {
 if (!loading) {
-setLastUpdated(new Date()); // <-- NEW: Update clock on any data change
 if (isRemoteUpdate.current) {
 isRemoteUpdate.current = false;
 // Append incoming cloud changes to history to prevent accidental local wipes
@@ -290,9 +288,9 @@ showNotification("Error: Could not save to cloud.");
 
 // History Tracking
 if (isUndoRedo.current) {
-    isUndoRedo.current = false; // Reset blocker if we just executed an undo/redo
+isUndoRedo.current = false; // Reset blocker if we just executed an undo/redo
 } else {
-    saveToHistory(cleanTasks); // Otherwise, it's a standard save. Record it!
+saveToHistory(cleanTasks); // Otherwise, it's a standard save. Record it!
 }
 }
 }
@@ -321,15 +319,15 @@ return () => document.removeEventListener('fullscreenchange', handleFsChange);
 
 // --- DUAL ENGINE EXPLICIT SAVE LOGIC ---
 const saveKeys = () => {
-    localStorage.setItem('gemini_api_key', geminiKey);
-    localStorage.setItem('openrouter_api_key', openRouterKey);
-    setHasSavedKeys(true);
-    showNotification("API Keys saved securely. AI Activated.");
+localStorage.setItem('gemini_api_key', geminiKey);
+localStorage.setItem('openrouter_api_key', openRouterKey);
+setHasSavedKeys(true);
+showNotification("API Keys saved securely. AI Activated.");
 };
 
 const toggleEngine = (val) => {
-    setAiEngine(val);
-    localStorage.setItem('ai_engine_pref', val);
+setAiEngine(val);
+localStorage.setItem('ai_engine_pref', val);
 };
 
 // Drag logic
@@ -520,68 +518,68 @@ setTimeout(() => setNotification(''), 3000);
 
 // --- UPDATED DUAL AI ENGINE FETCH LOGIC ---
 const fetchInsights = async (promptType) => {
-    let activeKey = aiEngine === 'gemini' ? geminiKey : openRouterKey;
-    let actualEngine = aiEngine;
-    
-    // Smart Fallback
-    if (!activeKey) {
-        if (aiEngine === 'gemini' && openRouterKey) { activeKey = openRouterKey; actualEngine = 'openrouter'; }
-        else if (aiEngine === 'openrouter' && geminiKey) { activeKey = geminiKey; actualEngine = 'gemini'; }
-        else return showNotification("Please enter an API key in the configuration area first.");
-    }
+let activeKey = aiEngine === 'gemini' ? geminiKey : openRouterKey;
+let actualEngine = aiEngine;
 
-    setIsAiLoading(true);
-    setAiResponse('');
+// Smart Fallback
+if (!activeKey) {
+if (aiEngine === 'gemini' && openRouterKey) { activeKey = openRouterKey; actualEngine = 'openrouter'; }
+else if (aiEngine === 'openrouter' && geminiKey) { activeKey = geminiKey; actualEngine = 'gemini'; }
+else return showNotification("Please enter an API key in the configuration area first.");
+}
 
-    try {
-        const taskString = tasks.map(t => {
-            const isFixedDate = !t.scheduleType || t.scheduleType.includes('Absolute') || (t.startDate && t.endDate);
-            const sched = isFixedDate 
-                ? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` 
-                : `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
-            const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
-            return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
-        }).join('\n');
+setIsAiLoading(true);
+setAiResponse('');
 
-        let specificPrompt = "";
-        if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY, telling me which item to switch where or allocation suggestions";
-        else if (promptType === 'Bottlenecks') specificPrompt = "Identify potential bottlenecks in this compliance workplan based strictly on task dependencies, external departments, status, and overlapping schedules.";
-        else if (promptType === 'Actions') specificPrompt = "Based on the current status and upcoming deadlines, recommend the immediate top 5 strategic actions the team must take to ensure regulatory compliance.";
-        else if (promptType === 'Deliverables') specificPrompt = "Forecast the projected deliverables and key compliance milestones over the next 3-6 months based on the provided timeline.";
-        else if (promptType === 'Custom') specificPrompt = customPrompt;
+try {
+const taskString = tasks.map(t => {
+const isFixedDate = !t.scheduleType || t.scheduleType.includes('Absolute') || (t.startDate && t.endDate);
+const sched = isFixedDate 
+? `${t.startDate || 'No Start Date'} to ${t.endDate || 'No End Date'}` 
+: `T+${t.triggerOffset || 0} days after ${t.triggerEvent || 'Trigger'}`;
+const dep = t.dependency === 'External' ? `External (${t.department || 'Unspecified Dept'})` : 'Internal (RISPL)';
+return `- ${t.title} [Status: ${t.status}, Class: ${t.classification}, Schedule: ${sched}, Dep: ${dep}]`;
+}).join('\n');
 
-        const finalPrompt = `${specificPrompt}\n\nCRITICAL OUTPUT INSTRUCTIONS:\n1. Do NOT include introductory filler (e.g., "Here is the analysis").\n2. USE markdown formatting extensively for readability. Use bolding (**text**) for emphasis and key metrics.\n3. USE bullet points (-) and numbered lists to break up dense information into scannable points.\n4. Ensure the final output is highly structured and easy to read as a professional executive summary.\n\nWorkplan Data:\n${taskString}`;
+let specificPrompt = "";
+if (promptType === 'Holistic') specificPrompt = "As a compliance advisor, carry out an analysis and summary of the workplan. Cover: 1. Key data, ratios, and effort needed. 2. Potential bottlenecks. 3. Assumptions made. 4. Suggestions for resource management across the FY, telling me which item to switch where or allocation suggestions";
+else if (promptType === 'Bottlenecks') specificPrompt = "Identify potential bottlenecks in this compliance workplan based strictly on task dependencies, external departments, status, and overlapping schedules.";
+else if (promptType === 'Actions') specificPrompt = "Based on the current status and upcoming deadlines, recommend the immediate top 5 strategic actions the team must take to ensure regulatory compliance.";
+else if (promptType === 'Deliverables') specificPrompt = "Forecast the projected deliverables and key compliance milestones over the next 3-6 months based on the provided timeline.";
+else if (promptType === 'Custom') specificPrompt = customPrompt;
 
-        let response, data;
+const finalPrompt = `${specificPrompt}\n\nCRITICAL OUTPUT INSTRUCTIONS:\n1. Do NOT include introductory filler (e.g., "Here is the analysis").\n2. USE markdown formatting extensively for readability. Use bolding (**text**) for emphasis and key metrics.\n3. USE bullet points (-) and numbered lists to break up dense information into scannable points.\n4. Ensure the final output is highly structured and easy to read as a professional executive summary.\n\nWorkplan Data:\n${taskString}`;
 
-        if (actualEngine === 'gemini') {
-            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] })
-            });
-            data = await response.json();
-            if (data.error) throw new Error(data.error.message);
-            setAiResponse(data.candidates[0].content.parts[0].text);
-        } else {
-            response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${activeKey}`,
-                    'HTTP-Referer': window.location.href,
-                    'X-Title': 'Compliance Workplan Suite'
-                },
-                body: JSON.stringify({ model: "openrouter/free", messages: [{ role: "user", content: finalPrompt }] })
-            });
-            data = await response.json();
-            if (data.error) throw new Error(data.error.message);
-            setAiResponse(data.choices[0].message.content);
-        }
-    } catch (error) {
-        setAiResponse(`### Error Fetching Insights\n\nThere was a problem communicating with the AI service.\n\n*Error details: ${error.message}*`);
-    }
-    setIsAiLoading(false);
+let response, data;
+
+if (actualEngine === 'gemini') {
+response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] })
+});
+data = await response.json();
+if (data.error) throw new Error(data.error.message);
+setAiResponse(data.candidates[0].content.parts[0].text);
+} else {
+response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+method: 'POST',
+headers: { 
+'Content-Type': 'application/json', 
+'Authorization': `Bearer ${activeKey}`,
+'HTTP-Referer': window.location.href,
+'X-Title': 'Compliance Workplan Suite'
+},
+body: JSON.stringify({ model: "openrouter/free", messages: [{ role: "user", content: finalPrompt }] })
+});
+data = await response.json();
+if (data.error) throw new Error(data.error.message);
+setAiResponse(data.choices[0].message.content);
+}
+} catch (error) {
+setAiResponse(`### Error Fetching Insights\n\nThere was a problem communicating with the AI service.\n\n*Error details: ${error.message}*`);
+}
+setIsAiLoading(false);
 };
 
 // Export Logic
@@ -861,14 +859,7 @@ return (
 Compliance Workplan FY 26/27
 <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1"><IconGlobe size={10} /> Cloud Sync Active</span>
 </h1>
-<div className="flex items-center gap-3 mt-0.5">
-<p className="text-base font-medium text-blue-600">Razorpay Singapore</p>
-{lastUpdated && (
-<span className="text-[10px] font-bold text-slate-400 border-l border-slate-300 pl-3 tracking-wide">
-LAST UPDATED: {lastUpdated.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
-</span>
-)}
-</div>
+<p className="text-base font-medium text-blue-600 mt-0.5">Razorpay Singapore</p>
 </div>
 
 {/* NEW: Date Stamp that only renders onto the PDF */}
@@ -1228,9 +1219,9 @@ return (
 <div className="relative w-56 h-56 flex items-center justify-center mb-6">
 <div className="absolute inset-0 rounded-full" style={{
 background: `conic-gradient(
-                                   #22c55e 0% ${chartData.completed}%, 
-                                   #3b82f6 ${chartData.completed}% ${chartData.completed + chartData.inProgress}%, 
-                                   #e2e8f0 ${chartData.completed + chartData.inProgress}% 100%)`
+                                  #22c55e 0% ${chartData.completed}%, 
+                                  #3b82f6 ${chartData.completed}% ${chartData.completed + chartData.inProgress}%, 
+                                  #e2e8f0 ${chartData.completed + chartData.inProgress}% 100%)`
 }}></div>
 <div className="w-40 h-40 bg-white rounded-full flex flex-col items-center justify-center shadow-inner z-10">
 <span className="text-4xl font-bold text-slate-800">{chartData.total}</span>
@@ -1349,24 +1340,24 @@ Tasks that are 'Not Started' and starting in ≤ 14 days, OR 'In Progress' and e
 
 <div className="mb-8 space-y-4 border-b border-slate-100 pb-6">
 <div>
-    <label className="block text-sm font-bold text-slate-700 mb-1">Primary Engine: Google Gemini API</label>
-    <input type="password" placeholder="Enter Gemini API Key (e.g. AIzaSy...)" 
-    className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm shadow-inner"
-    value={geminiKey} onChange={e => setGeminiKey(e.target.value)}
-    />
+<label className="block text-sm font-bold text-slate-700 mb-1">Primary Engine: Google Gemini API</label>
+<input type="password" placeholder="Enter Gemini API Key (e.g. AIzaSy...)" 
+className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm shadow-inner"
+value={geminiKey} onChange={e => setGeminiKey(e.target.value)}
+/>
 </div>
 <div>
-    <label className="block text-sm font-bold text-slate-700 mb-1">Fallback Engine: OpenRouter API (Free)</label>
-    <input type="password" placeholder="Enter OpenRouter API Key (e.g. sk-or-v1...)" 
-    className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm shadow-inner"
-    value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)}
-    />
+<label className="block text-sm font-bold text-slate-700 mb-1">Fallback Engine: OpenRouter API (Free)</label>
+<input type="password" placeholder="Enter OpenRouter API Key (e.g. sk-or-v1...)" 
+className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm shadow-inner"
+value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)}
+/>
 </div>
 <button onClick={saveKeys} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-sm mt-4">
-    Save Keys & Activate AI
+Save Keys & Activate AI
 </button>
 <p className="text-xs font-medium text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
-    <strong>Tip:</strong> You only need to enter <strong>one</strong> key to continue. If you hit Google's rate limits, enter an OpenRouter key to keep going for free.
+<strong>Tip:</strong> You only need to enter <strong>one</strong> key to continue. If you hit Google's rate limits, enter an OpenRouter key to keep going for free.
 </p>
 </div>
 
@@ -1400,21 +1391,21 @@ Tasks that are 'Not Started' and starting in ≤ 14 days, OR 'In Progress' and e
 </div>
 </div>
 <div className="flex flex-col items-end gap-1">
-    <div className="flex items-center gap-2">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Engine:</label>
-        <select value={aiEngine} onChange={(e) => toggleEngine(e.target.value)} className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-1 focus:ring-indigo-500">
-            <option value="gemini">Google Gemini</option>
-            <option value="openrouter">OpenRouter (Llama 3)</option>
-        </select>
-    </div>
-    <button onClick={() => { 
-        setGeminiKey(''); 
-        setOpenRouterKey(''); 
-        localStorage.removeItem('gemini_api_key'); 
-        localStorage.removeItem('openrouter_api_key'); 
-        setHasSavedKeys(false);
-        setAiResponse(''); 
-    }} className="text-[10px] text-slate-400 hover:text-red-500 underline mt-1">Reset API Keys</button>
+<div className="flex items-center gap-2">
+<label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Engine:</label>
+<select value={aiEngine} onChange={(e) => toggleEngine(e.target.value)} className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-1 focus:ring-indigo-500">
+<option value="gemini">Google Gemini</option>
+<option value="openrouter">OpenRouter (Llama 3)</option>
+</select>
+</div>
+<button onClick={() => { 
+setGeminiKey(''); 
+setOpenRouterKey(''); 
+localStorage.removeItem('gemini_api_key'); 
+localStorage.removeItem('openrouter_api_key'); 
+setHasSavedKeys(false);
+setAiResponse(''); 
+}} className="text-[10px] text-slate-400 hover:text-red-500 underline mt-1">Reset API Keys</button>
 </div>
 </div>
 
