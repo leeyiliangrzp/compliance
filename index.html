@@ -42,6 +42,8 @@ const IconLayoutList = (p) => <SVGIcon {...p}><rect width="7" height="7" x="3" y
 const IconBarChart3 = (p) => <SVGIcon {...p}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></SVGIcon>;
 const IconEdit = (p) => <SVGIcon {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></SVGIcon>;
 const IconX = (p) => <SVGIcon {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></SVGIcon>;
+const IconUndo = (p) => <SVGIcon {...p}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></SVGIcon>;
+const IconRedo = (p) => <SVGIcon {...p}><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></SVGIcon>;
 const IconDownload = (p) => <SVGIcon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></SVGIcon>;
 const IconUpload = (p) => <SVGIcon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></SVGIcon>;
 const IconRefreshCw = (p) => <SVGIcon {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></SVGIcon>;
@@ -121,6 +123,10 @@ const [isModalOpen, setIsModalOpen] = useState(false);
 const [editingId, setEditingId] = useState(null);
 const [loading, setLoading] = useState(true);
 
+// --- NEW: UNDO/REDO ENGINE STATE ---
+const [historyState, setHistoryState] = useState({ stack: [], step: -1 });
+const isUndoRedo = useRef(false);
+
 const fileInputRef = useRef(null);
 const timelineGridRef = useRef(null);
 const exportMenuRef = useRef(null);
@@ -142,7 +148,7 @@ classification: 'All', status: 'All', dependency: 'All', department: 'All'
 const [sortBy, setSortBy] = useState('default'); 
 const [timelineScale, setTimelineScale] = useState('months');
 
-// --- NEW DUAL AI ENGINE STATE ---
+// --- DUAL AI ENGINE STATE ---
 const [hasSavedKeys, setHasSavedKeys] = useState(!!(localStorage.getItem('gemini_api_key') || localStorage.getItem('openrouter_api_key')));
 const [aiEngine, setAiEngine] = useState(localStorage.getItem('ai_engine_pref') || 'gemini'); 
 const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
@@ -159,6 +165,66 @@ triggerOffset: 30, startDate: '2026-04-01', endDate: '2026-04-30'
 
 // FIREBASE SYNC REF
 const isRemoteUpdate = useRef(false);
+
+// --- NEW: UNDO/REDO LOGIC ---
+const saveToHistory = (newTasks) => {
+    setHistoryState(prev => {
+        const nextStack = prev.stack.slice(0, prev.step + 1);
+        const stateStr = JSON.stringify(newTasks);
+        // Avoid duplicate pushes if no actual data changed
+        if (nextStack.length > 0 && nextStack[nextStack.length - 1] === stateStr) {
+            return prev;
+        }
+        nextStack.push(stateStr);
+        if (nextStack.length > 50) nextStack.shift(); 
+        return { stack: nextStack, step: nextStack.length - 1 };
+    });
+};
+
+const undo = () => {
+    setHistoryState(prev => {
+        if (prev.step > 0) {
+            const newStep = prev.step - 1;
+            const prevTasks = JSON.parse(prev.stack[newStep]);
+            isUndoRedo.current = true; 
+            setTasks(prevTasks);
+            showNotification("Action Undone");
+            return { ...prev, step: newStep };
+        }
+        return prev;
+    });
+};
+
+const redo = () => {
+    setHistoryState(prev => {
+        if (prev.step < prev.stack.length - 1) {
+            const newStep = prev.step + 1;
+            const nextTasks = JSON.parse(prev.stack[newStep]);
+            isUndoRedo.current = true;
+            setTasks(nextTasks);
+            showNotification("Action Redone");
+            return { ...prev, step: newStep };
+        }
+        return prev;
+    });
+};
+
+// Keyboard Shortcuts Listener
+useEffect(() => {
+    const handleKeyDown = (e) => {
+        const isMod = e.ctrlKey || e.metaKey;
+        if (isMod && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            if (e.shiftKey) redo(); else undo();
+        }
+        if (isMod && e.key.toLowerCase() === 'y') {
+            e.preventDefault();
+            redo();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+}, [historyState]); // Re-bind on state change to ensure fresh values
 
 // Setup effect hooks
 useEffect(() => {
@@ -186,11 +252,17 @@ window.firebaseDbRef = tasksRef;
 tasksRef.on('value', (snapshot) => {
 const data = snapshot.val();
 isRemoteUpdate.current = true; 
-if (data) {
-setTasks(data);
-} else {
-setTasks([]); 
-}
+const incomingTasks = data || [];
+setTasks(incomingTasks);
+
+// Initialize history safely on the first load
+setHistoryState(prev => {
+    if (prev.stack.length === 0) {
+        return { stack: [JSON.stringify(incomingTasks)], step: 0 };
+    }
+    return prev;
+});
+
 setLoading(false);
 });
 } catch (error) {
@@ -199,11 +271,13 @@ setLoading(false);
 }
 }, []);
 
-// FIREBASE SAVE EFFECT
+// FIREBASE SAVE EFFECT (UPDATED WITH HISTORY TRACKING)
 useEffect(() => {
 if (!loading) {
 if (isRemoteUpdate.current) {
 isRemoteUpdate.current = false;
+// Append incoming cloud changes to history to prevent accidental local wipes
+saveToHistory(tasks);
 } else {
 if (window.firebaseDbRef) {
 const cleanTasks = JSON.parse(JSON.stringify(tasks)); 
@@ -211,6 +285,13 @@ window.firebaseDbRef.set(cleanTasks).catch(error => {
 console.error("Firebase Save Error:", error);
 showNotification("Error: Could not save to cloud.");
 });
+
+// History Tracking
+if (isUndoRedo.current) {
+    isUndoRedo.current = false; // Reset blocker if we just executed an undo/redo
+} else {
+    saveToHistory(cleanTasks); // Otherwise, it's a standard save. Record it!
+}
 }
 }
 }
@@ -486,13 +567,10 @@ const fetchInsights = async (promptType) => {
                 headers: { 
                     'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${activeKey}`,
-                    'HTTP-Referer': window.location.href, // OpenRouter prefers this header
+                    'HTTP-Referer': window.location.href,
                     'X-Title': 'Compliance Workplan Suite'
                 },
-                body: JSON.stringify({ 
-                    model: "openrouter/free", // This auto-routes to the best available free model so it never breaks
-                    messages: [{ role: "user", content: finalPrompt }] 
-                })
+                body: JSON.stringify({ model: "openrouter/free", messages: [{ role: "user", content: finalPrompt }] })
             });
             data = await response.json();
             if (data.error) throw new Error(data.error.message);
@@ -782,6 +860,17 @@ Compliance Workplan
 <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-full border border-indigo-200"><IconGlobe size={8} className="inline" /> Cloud Sync</span>
 </div>
 )}
+
+{/* NEW: UNDO / REDO BUTTONS */}
+<div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+<button onClick={undo} disabled={historyState.step <= 0} className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Undo (Ctrl+Z)">
+<IconUndo size={16} />
+</button>
+<button onClick={redo} disabled={historyState.step >= historyState.stack.length - 1} className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Redo (Ctrl+Y)">
+<IconRedo size={16} />
+</button>
+</div>
+
 <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
 <button onClick={() => setView('timeline')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
 <IconBarChart3 size={16} /> <span className="hidden sm:inline">Timeline</span>
@@ -1533,6 +1622,7 @@ showNotification("Trigger executed! Task moved to main timeline.");
 </div>
 )}
 
+{/* CONFIRM DELETE MODAL */}
 {deleteConfirmId && (
 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
 <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200 p-6 text-center animate-in zoom-in-95 duration-200">
@@ -1547,6 +1637,7 @@ showNotification("Trigger executed! Task moved to main timeline.");
 </div>
 )}
 
+{/* NOTIFICATIONS */}
 {notification && (
 <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg z-[130] flex items-center gap-2 animate-in slide-in-from-bottom-2">
 {notification.includes("successfully") || notification.includes("executed") || notification.includes("Cloud") || notification.includes("cloud") ? <IconCheckCircle2 size={16} className="text-green-400" /> : <IconAlertCircle size={16} className="text-blue-400" />}
