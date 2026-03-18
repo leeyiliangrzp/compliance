@@ -147,6 +147,7 @@ classification: 'All', status: 'All', dependency: 'All', department: 'All'
 });
 const [sortBy, setSortBy] = useState('default'); 
 const [timelineScale, setTimelineScale] = useState('months');
+const [lastUpdated, setLastUpdated] = useState(new Date()); // <-- NEW STATE
 
 // --- DUAL AI ENGINE STATE ---
 const [hasSavedKeys, setHasSavedKeys] = useState(!!(localStorage.getItem('gemini_api_key') || localStorage.getItem('openrouter_api_key')));
@@ -274,6 +275,7 @@ setLoading(false);
 // FIREBASE SAVE EFFECT (UPDATED WITH HISTORY TRACKING)
 useEffect(() => {
 if (!loading) {
+setLastUpdated(new Date()); // <-- NEW: Update clock on any data change
 if (isRemoteUpdate.current) {
 isRemoteUpdate.current = false;
 // Append incoming cloud changes to history to prevent accidental local wipes
@@ -763,9 +765,12 @@ document.head.appendChild(script);
 
 const element = containerRef.current;
 
-// --- NEW: Generate Date String for Filename ---
+// --- NEW: Generate Date String for Filename (DDMMYYYY) ---
 const dateObj = new Date();
-const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+const dd = String(dateObj.getDate()).padStart(2, '0');
+const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+const yyyy = dateObj.getFullYear();
+const dateStr = `${dd}${mm}${yyyy}`;
 
 const opt = {
 margin:       0.3, 
@@ -856,16 +861,21 @@ return (
 Compliance Workplan FY 26/27
 <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1"><IconGlobe size={10} /> Cloud Sync Active</span>
 </h1>
-<p className="text-base font-medium text-blue-600 mt-0.5">Razorpay Singapore</p>
+<div className="flex items-center gap-3 mt-0.5">
+<p className="text-base font-medium text-blue-600">Razorpay Singapore</p>
+{lastUpdated && (
+<span className="text-[10px] font-bold text-slate-400 border-l border-slate-300 pl-3 tracking-wide">
+LAST UPDATED: {lastUpdated.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
+</span>
+)}
+</div>
 </div>
 
 {/* NEW: Date Stamp that only renders onto the PDF */}
 {isPdfMode && (
 <div className="text-right flex flex-col justify-center pr-8">
 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Generated On</span>
-<span className="text-sm font-black text-slate-700">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-</div>
-)}
+<span className="text-sm font-black text-slate-700">{new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</span>
 </div>
 )}
 
