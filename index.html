@@ -109,6 +109,9 @@ else d.setDate(lastDay);
 return d;
 };
 
+        // Trigger snapping logic for intervals of 15 days
+        const snapTrigger = (val) => Math.round(val / 15) * 15;
+
 // --- Robust Markdown Parser Component ---
 const MarkdownParser = ({ text }) => {
 const html = window.marked ? window.marked.parse(text) : text;
@@ -160,7 +163,7 @@ const [customPrompt, setCustomPrompt] = useState('');
 const [newTask, setNewTask] = useState({
 title: '', description: '', classification: CLASSIFICATIONS[0], status: STATUSES[0],
 dependency: DEPENDENCIES[0], department: '', scheduleType: 'Absolute Date', triggerEvent: TRIGGER_EVENTS[0],
-triggerOffset: 30, startDate: '2026-04-01', endDate: '2026-04-30'
+            triggerOffset: 30, triggerDuration: 30, startDate: '2026-04-01', endDate: '2026-04-30'
 });
 
 // FIREBASE SYNC REF
@@ -338,7 +341,7 @@ const handleMouseMove = (e) => {
 if (!timelineGridRef.current) return;
 const diffX = e.clientX - dragState.startX;
 const timelineWidth = timelineGridRef.current.offsetWidth;
-const totalDaysInTimeline = 365; 
+              const totalDaysInTimeline = dragState.isTrigger ? 180 : 365; 
 const pixelsPerDay = timelineWidth / totalDaysInTimeline;
 const shiftDays = Math.round(diffX / pixelsPerDay);
 setDragState(prev => ({ ...prev, shiftDays }));
@@ -346,6 +349,33 @@ setDragState(prev => ({ ...prev, shiftDays }));
 
 const handleMouseUp = () => {
 if (dragState.shiftDays !== 0) {
+                if (dragState.isTrigger) {
+                    let nStart = dragState.initialStart;
+                    let nDuration = dragState.initialDuration;
+
+                    if (dragState.mode === 'move') {
+                        nStart += dragState.shiftDays;
+                        nStart = snapTrigger(nStart);
+                        if (nStart < 0) nStart = 0;
+                    } else if (dragState.mode === 'resize-left') {
+                        nStart += dragState.shiftDays;
+                        nStart = snapTrigger(nStart);
+                        if (nStart < 0) nStart = 0;
+                        nDuration = (dragState.initialStart + dragState.initialDuration) - nStart;
+                        if (nDuration < 15) { nDuration = 15; nStart = (dragState.initialStart + dragState.initialDuration) - 15; }
+                    } else if (dragState.mode === 'resize-right') {
+                        let nEnd = dragState.initialStart + dragState.initialDuration + dragState.shiftDays;
+                        nEnd = snapTrigger(nEnd);
+                        nDuration = nEnd - dragState.initialStart;
+                        if (nDuration < 15) nDuration = 15;
+                    }
+
+                    setTasks(prevTasks => prevTasks.map(t => {
+                        if (t.id === dragState.id) return { ...t, triggerOffset: nStart, triggerDuration: nDuration };
+                        return t;
+                    }));
+                    showNotification("Trigger timeline updated.");
+                } else {
 let nStart = new Date(dragState.initialStart);
 let nEnd = new Date(dragState.initialEnd);
 
@@ -395,7 +425,28 @@ const handleDragStart = (e, task, mode = 'move') => {
 if (task.scheduleType === 'T + X Trigger') return;
 e.stopPropagation();
 e.preventDefault(); 
-setDragState({ id: task.id, startX: e.clientX, initialStart: new Date(task.startDate), initialEnd: new Date(task.endDate), shiftDays: 0, mode });
+            
+            if (task.scheduleType === 'T + X Trigger') {
+                setDragState({
+                    id: task.id,
+                    isTrigger: true,
+                    startX: e.clientX,
+                    initialStart: task.triggerOffset || 0,
+                    initialDuration: task.triggerDuration || 30,
+                    shiftDays: 0,
+                    mode
+                });
+            } else {
+                setDragState({ 
+                    id: task.id, 
+                    isTrigger: false,
+                    startX: e.clientX, 
+                    initialStart: new Date(task.startDate), 
+                    initialEnd: new Date(task.endDate), 
+                    shiftDays: 0, 
+                    mode 
+                });
+            }
 };
 
 // Filtering & Sorting
@@ -600,7 +651,7 @@ const depClass = task.dependency === 'External' ? 'bg-orange-50 text-orange-700 
 const titleClass = task.dependency === 'External' ? 'text-red-600 font-bold' : 'text-slate-800 font-medium';
 
 let scheduleHtml = task.scheduleType === 'T + X Trigger' 
-? '<div class="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded-md inline-block"><span class="font-bold">T+' + task.triggerOffset + ' days</span> <span class="text-xs italic">(' + task.triggerEvent + ')</span></div>'
+                    ? '<div class="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded-md inline-block"><span class="font-bold">T+' + task.triggerOffset + ' to T+' + (task.triggerOffset + (task.triggerDuration || 30)) + ' days</span> <span class="text-xs italic">(' + task.triggerEvent + ')</span></div>'
 : '<span>' + new Date(task.startDate).toLocaleDateString() + ' &mdash; ' + new Date(task.endDate).toLocaleDateString() + '</span>';
 
 const safeTitle = (task.title || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -724,7 +775,7 @@ setEditingId(null);
 setIsCustomTrigger(false);
 setNewTask({
 title: '', description: '', classification: CLASSIFICATIONS[0], status: STATUSES[0],
-dependency: 'RISPL', department: '', scheduleType: 'Absolute Date', triggerEvent: TRIGGER_EVENTS[0], triggerOffset: 30,
+              dependency: 'RISPL', department: '', scheduleType: 'Absolute Date', triggerEvent: TRIGGER_EVENTS[0], triggerOffset: 30, triggerDuration: 30,
 startDate: '2026-04-01', endDate: '2026-04-30'
 });
 setIsModalOpen(true);
@@ -736,7 +787,7 @@ const { id, priority, ...data } = task;
 const eventTrigger = data.triggerEvent || TRIGGER_EVENTS[0];
 setIsCustomTrigger(!TRIGGER_EVENTS.includes(eventTrigger));
 setNewTask({
-description: '', department: '', scheduleType: 'Absolute Date', triggerOffset: 30,
+                description: '', department: '', scheduleType: 'Absolute Date', triggerOffset: 30, triggerDuration: 30,
 ...data, triggerEvent: eventTrigger, dependency: data.dependency === 'External' ? 'External' : 'RISPL'
 });
 setIsModalOpen(true);
@@ -796,7 +847,7 @@ const totalDuration = fyEnd - fyStart;
 let taskStart = new Date(task.startDate).getTime();
 let taskEnd = new Date(task.endDate).getTime();
 
-if (dragState && dragState.id === task.id) {
+            if (dragState && dragState.id === task.id && !dragState.isTrigger) {
 const shiftMs = dragState.shiftDays * 24 * 60 * 60 * 1000;
 let tempStart = new Date(task.startDate);
 let tempEnd = new Date(task.endDate);
@@ -830,6 +881,38 @@ const widthPercent = ((effectiveEnd - effectiveStart) / totalDuration) * 100;
 
 return { left: `${leftPercent}%`, width: `${Math.max(widthPercent, 0.5)}%` };
 };
+
+          // --- Helper for Trigger Gantt Bars ---
+          const getTriggerBarStyles = (task) => {
+            const totalDuration = 180; // Rendered across 180 days (12 cols x 15 days)
+            let start = task.triggerOffset || 0;
+            let duration = task.triggerDuration || 30;
+
+            if (dragState && dragState.id === task.id && dragState.isTrigger) {
+                const shiftDays = dragState.shiftDays;
+                
+                if (dragState.mode === 'move') {
+                    start += shiftDays;
+                    start = snapTrigger(start);
+                } else if (dragState.mode === 'resize-left') {
+                    start += shiftDays;
+                    start = snapTrigger(start);
+                    duration = (dragState.initialStart + dragState.initialDuration) - start;
+                    if (duration < 15) { duration = 15; start = (dragState.initialStart + dragState.initialDuration) - 15; }
+                } else if (dragState.mode === 'resize-right') {
+                    let end = dragState.initialStart + dragState.initialDuration + shiftDays;
+                    end = snapTrigger(end);
+                    duration = end - dragState.initialStart;
+                    if (duration < 15) duration = 15;
+                }
+                if (start < 0) start = 0;
+            }
+
+            const leftPercent = (start / totalDuration) * 100;
+            const widthPercent = (duration / totalDuration) * 100;
+
+            return { left: `${leftPercent}%`, width: `${widthPercent}%` };
+          };
 
 const isDateInvalid = newTask.scheduleType === 'Absolute Date' && newTask.startDate && newTask.endDate && new Date(newTask.startDate) > new Date(newTask.endDate);
 
@@ -1098,6 +1181,15 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 <div className="bg-indigo-50 p-3 border-b border-indigo-100 sticky left-0 font-medium text-indigo-800 flex items-center gap-2">
 <IconClock size={16} /> Post-Trigger Action Items (T + X Dependencies)
 </div>
+                                  <div className="flex-1 flex relative">
+                                    {Array.from({length: 12}).map((_, i) => (
+                                      <div key={`t-${i}`} className="flex-1 border-r border-indigo-100/50 p-2 text-center text-xs font-medium text-indigo-400 bg-indigo-50/30 pointer-events-none">
+                                        T+{i * 15}
+                                      </div>
+                                    ))}
+                                  </div>
+                               </div>
+
 <div className="min-w-[1000px] flex flex-col">
 {triggerTasks.map(task => {
 const statusBorder = task.status === 'Completed' ? 'border-l-4 border-green-500' : task.status === 'In Progress' ? 'border-l-4 border-blue-500' : 'border-l-4 border-gray-400';
@@ -1112,6 +1204,7 @@ return (
 {task.dependency === 'External' ? (task.department ? `Ext: ${task.department}` : 'External') : 'RISPL'}
 </span>
 </div>
+                                            <div className="text-[10px] font-bold text-indigo-600 mt-1 italic">Trigger: {task.triggerEvent}</div>
 </div>
 <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(task.id); }} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all">
 <IconTrash2 size={16} />
@@ -1174,7 +1267,7 @@ return (
 <td className="p-4 align-top text-slate-600">
 {task.scheduleType === 'T + X Trigger' ? (
 <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded-md inline-block">
-<span className="font-bold">T+{task.triggerOffset} days</span> <span className="text-xs italic">({task.triggerEvent})</span>
+                                              <span className="font-bold">T+{task.triggerOffset} to T+{task.triggerOffset + (task.triggerDuration || 30)} days</span> <span className="text-xs italic">({task.triggerEvent})</span>
 </div>
 ) : (
 <span>{new Date(task.startDate).toLocaleDateString()} — {new Date(task.endDate).toLocaleDateString()}</span>
@@ -1573,15 +1666,9 @@ className="border border-indigo-200 rounded-lg p-2 focus:ring-2 focus:ring-indig
 onChange={(e) => {
 if(e.target.value) {
 const start = new Date(e.target.value);
+                                                start.setDate(start.getDate() + newTask.triggerOffset);
 const end = new Date(start);
-end.setDate(end.getDate() + newTask.triggerOffset);
-
-const formatLocal = (d) => {
-const year = d.getFullYear();
-const month = String(d.getMonth() + 1).padStart(2, '0');
-const day = String(d.getDate()).padStart(2, '0');
-return `${year}-${month}-${day}`;
-};
+                                                end.setDate(end.getDate() + (newTask.triggerDuration || 30));
 
 setNewTask({
 ...newTask,
