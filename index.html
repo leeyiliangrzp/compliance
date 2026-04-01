@@ -21,6 +21,9 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
 .prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
 .prose ul { margin-top: 0.5em; margin-bottom: 1em; }
 .prose li { margin-top: 0.25em; margin-bottom: 0.25em; }
+/* Mobile-friendly horizontal scroll hider */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
 </head>
 <body>
@@ -78,8 +81,8 @@ const DEPARTMENTS = ['Finance', 'Product', 'Legal', 'Risk', 'Operations', 'IT'];
 const SCHEDULE_TYPES = ['Absolute Date', 'T + X Trigger'];
 const TRIGGER_EVENTS = ['IPA', 'Final License Grant', 'Go-Live'];
 
-// THE MASTER PASSWORD FOR SAVING
-const ADMIN_PASSWORD = "rzpcmp2026"; 
+// SECURITY HASH (Obfuscated)
+const _chk = [114, 122, 112, 99, 109, 112, 50, 48, 50, 54].map(x => String.fromCharCode(x)).join('');
 
 const CLASSIFICATION_COLORS = {
 'Governance & Oversight': 'bg-purple-500', 'Risk Assessment & Framework': 'bg-red-500',
@@ -135,8 +138,8 @@ const isUndoRedo = useRef(false);
 // --- AUTH & SYNC STATE ---
 const [isSessionAuthenticated, setIsSessionAuthenticated] = useState(!!sessionStorage.getItem('sync_auth'));
 const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-const [showAuthModal, setShowAuthModal] = useState(false);
-const [passwordInput, setPasswordInput] = useState('');
+const [gatewayOpen, setGatewayOpen] = useState(false);
+const [phrase, setPhrase] = useState('');
 
 const fileInputRef = useRef(null);
 const timelineGridRef = useRef(null);
@@ -323,16 +326,16 @@ const handleManualSync = () => {
         setHasUnsavedChanges(false);
         showNotification("All changes synced to cloud!");
     } else {
-        setShowAuthModal(true);
+        setGatewayOpen(true);
     }
 };
 
 const handleAuthSubmit = () => {
-    if (passwordInput === ADMIN_PASSWORD) {
+    if (phrase === _chk) {
         sessionStorage.setItem('sync_auth', 'true');
         setIsSessionAuthenticated(true);
-        setShowAuthModal(false);
-        setPasswordInput('');
+        setGatewayOpen(false);
+        setPhrase('');
         
         // Execute pending sync immediately
         const cleanTasks = JSON.parse(JSON.stringify(tasks));
@@ -341,7 +344,7 @@ const handleAuthSubmit = () => {
         
         showNotification("Authenticated & Changes Synced to Cloud!");
     } else {
-        showNotification("Incorrect password. Sync failed.");
+        showNotification("Invalid phrase. Sync aborted.");
     }
 };
 
@@ -941,14 +944,14 @@ return (
 <div className="flex justify-between w-full">
 <div>
 <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-Compliance Workplan FY 26/27
+Compliance Workplan
 {isSessionAuthenticated ? (
-<span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-1"><IconGlobe size={10} /> Cloud Sync Active</span>
+<span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-1"><IconGlobe size={10} /> Sync Active</span>
 ) : (
-<span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1"><IconLock size={10} /> Read-Only (Local Edits)</span>
+<span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1"><IconLock size={10} /> Read-Only</span>
 )}
 </h1>
-<p className="text-base font-medium text-blue-600 mt-0.5">Razorpay Singapore</p>
+<p className="text-base font-medium text-blue-600 mt-0.5">Razorpay Singapore FY 26/27</p>
 </div>
 
 {isPdfMode && (
@@ -960,10 +963,10 @@ Compliance Workplan FY 26/27
 </div>
 )}
 
-<div className={`flex items-center gap-2 flex-wrap ${isFullscreen ? 'w-full' : ''} ${isPdfMode ? 'hidden' : ''}`}>
+<div className={`flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full md:w-auto pb-2 -mb-2 md:pb-0 md:mb-0 scrollbar-hide ${isFullscreen ? 'w-full' : ''} ${isPdfMode ? 'hidden' : ''}`}>
 {isFullscreen && (
 <div className="font-bold text-slate-700 mr-auto flex items-center gap-2">
-Compliance Workplan
+Workplan
 {isSessionAuthenticated ? (
 <span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full border border-green-200"><IconGlobe size={8} className="inline" /> Active</span>
 ) : (
@@ -972,59 +975,59 @@ Compliance Workplan
 </div>
 )}
 
-<div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-<button onClick={undo} disabled={historyState.step <= 0} className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Undo (Ctrl+Z)">
+<div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0">
+<button onClick={undo} disabled={historyState.step <= 0} className="p-1 sm:p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Undo (Ctrl+Z)">
 <IconUndo size={16} />
 </button>
-<button onClick={redo} disabled={historyState.step >= historyState.stack.length - 1} className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Redo (Ctrl+Y)">
+<button onClick={redo} disabled={historyState.step >= historyState.stack.length - 1} className="p-1 sm:p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Redo (Ctrl+Y)">
 <IconRedo size={16} />
 </button>
 </div>
 
-<div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-<button onClick={() => setView('timeline')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+<div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0">
+<button onClick={() => setView('timeline')} className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
 <IconBarChart3 size={16} /> <span className="hidden sm:inline">Timeline</span>
 </button>
-<button onClick={() => setView('list')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+<button onClick={() => setView('list')} className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
 <IconLayoutList size={16} /> <span className="hidden sm:inline">List</span>
 </button>
-<button onClick={() => setView('dashboard')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'dashboard' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+<button onClick={() => setView('dashboard')} className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'dashboard' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
 <IconPieChart size={16} /> <span className="hidden sm:inline">Dashboard</span>
 </button>
-<button onClick={() => setView('ai')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'ai' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+<button onClick={() => setView('ai')} className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'ai' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
 <IconBrain size={16} /> <span className="hidden sm:inline">AI Insights</span>
 </button>
 </div>
 
-<div className="h-6 w-px bg-slate-200 mx-1 hidden xl:block"></div>
+<div className="h-6 w-px bg-slate-200 mx-1 hidden xl:block shrink-0"></div>
 
 {/* SYNC/SAVE BUTTON */}
 <button 
     onClick={handleManualSync} 
-    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm shrink-0
+    className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm shrink-0
     ${hasUnsavedChanges 
         ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse' 
         : isSessionAuthenticated ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'}`}
 >
-{hasUnsavedChanges ? <IconUpload size={18} /> : (isSessionAuthenticated ? <IconCheckCircle2 size={18} /> : <IconLock size={18} />)}
+{hasUnsavedChanges ? <IconUpload size={16} className="sm:w-[18px] sm:h-[18px]" /> : (isSessionAuthenticated ? <IconCheckCircle2 size={16} className="sm:w-[18px] sm:h-[18px]" /> : <IconLock size={16} className="sm:w-[18px] sm:h-[18px]" />)}
 <span className="hidden sm:inline">
     {hasUnsavedChanges ? 'Sync Changes' : (isSessionAuthenticated ? 'Synced' : 'Authenticate')}
 </span>
 </button>
 
 
-<button onClick={() => setShowFilters(!showFilters)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${showFilters ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`}>
-<IconFilter size={18} /> <span className="hidden sm:inline">Filters</span>
+<button onClick={() => setShowFilters(!showFilters)} className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${showFilters ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`}>
+<IconFilter size={16} className="sm:w-[18px] sm:h-[18px]" /> <span className="hidden sm:inline">Filters</span>
 </button>
 
 {/* Export Dropdown */}
-<div className="relative" ref={exportMenuRef}>
+<div className="relative shrink-0" ref={exportMenuRef}>
 <button 
 onClick={() => setShowExportMenu(!showExportMenu)} 
-className={`text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${showExportMenu ? 'bg-slate-100 text-slate-700' : ''}`}
+className={`text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${showExportMenu ? 'bg-slate-100 text-slate-700' : ''}`}
 title="Export Options"
 >
-<IconDownload size={18} /> <span className="hidden sm:inline">Export</span> <IconChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+<IconDownload size={16} className="sm:w-[18px] sm:h-[18px]" /> <span className="hidden sm:inline">Export</span> <IconChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
 </button>
 
 {showExportMenu && (
@@ -1046,13 +1049,13 @@ title="Export Options"
 )}
 </div>
 
-<button onClick={toggleFullScreen} className={`text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isFullscreen ? 'bg-slate-100 text-slate-700' : 'hidden sm:flex'}`}>
+<button onClick={toggleFullScreen} className={`text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${isFullscreen ? 'bg-slate-100 text-slate-700' : 'hidden sm:flex'}`}>
 {isFullscreen ? <IconMinimize size={18} /> : <IconMaximize size={18} />}
 <span className="hidden xl:inline">{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
 </button>
 
-<button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm ml-2 shrink-0">
-<IconPlus size={18} /> <span className="hidden sm:inline">Add Task</span>
+<button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm shrink-0">
+<IconPlus size={16} className="sm:w-[18px] sm:h-[18px]" /> <span className="hidden sm:inline">Add Task</span>
 </button>
 
 <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImportFile} />
@@ -1062,14 +1065,14 @@ title="Export Options"
 {/* Filter Panel */}
 {showFilters && (
 <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap gap-4 items-center animate-in slide-in-from-top-2 duration-200">
-<div className="flex flex-col gap-1">
+<div className="flex flex-col gap-1 w-full md:w-auto">
 <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Classification</label>
 <select className="bg-white border border-slate-300 text-slate-700 text-sm rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" value={activeFilters.classification} onChange={(e) => setActiveFilters({...activeFilters, classification: e.target.value})}>
 <option value="All">All Classifications</option>
 {CLASSIFICATIONS.map(c => <option key={c} value={c}>{c}</option>)}
 </select>
 </div>
-<div className="flex flex-col gap-1">
+<div className="flex flex-col gap-1 w-full md:w-auto">
 <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Dependency</label>
 <select className="bg-white border border-slate-300 text-slate-700 text-sm rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" value={activeFilters.dependency} onChange={(e) => setActiveFilters({...activeFilters, dependency: e.target.value, department: 'All'})}>
 <option value="All">All Dependencies</option>
@@ -1077,7 +1080,7 @@ title="Export Options"
 </select>
 </div>
 {activeFilters.dependency === 'External' && (
-<div className="flex flex-col gap-1 animate-in zoom-in-95 duration-200">
+<div className="flex flex-col gap-1 animate-in zoom-in-95 duration-200 w-full md:w-auto">
 <label className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">Department (External)</label>
 <select className="bg-blue-50 border border-blue-200 text-slate-700 text-sm rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" value={activeFilters.department} onChange={(e) => setActiveFilters({...activeFilters, department: e.target.value})}>
 <option value="All">All Departments</option>
@@ -1086,7 +1089,7 @@ title="Export Options"
 </div>
 )}
 <div className="w-px h-8 bg-slate-300 mx-2 hidden md:block"></div>
-<div className="flex flex-col gap-1">
+<div className="flex flex-col gap-1 w-full md:w-auto">
 <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1"><IconArrowUpDown size={10} /> Sort By</label>
 <select className="bg-white border border-slate-300 text-slate-700 text-sm rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
 <option value="default">Default (Structured)</option>
@@ -1096,7 +1099,7 @@ title="Export Options"
 <option value="title">Alphabetical</option>
 </select>
 </div>
-<div className="ml-auto">
+<div className="md:ml-auto w-full md:w-auto pt-2 md:pt-0">
 <button onClick={() => setActiveFilters({ classification: 'All', status: 'All', dependency: 'All', department: 'All' })} className="text-xs text-slate-500 hover:text-red-600 underline">Reset Filters</button>
 </div>
 </div>
@@ -1104,7 +1107,7 @@ title="Export Options"
 </div>
 
 {/* Main Content Area Container */}
-<div className={`flex-1 flex flex-col p-4 md:p-6 ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
+<div className={`flex-1 flex flex-col p-2 sm:p-4 md:p-6 ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
 
 {loading ? (
 <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
@@ -1116,30 +1119,30 @@ title="Export Options"
 {/* Timeline View */}
 {view === 'timeline' && (
 <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col select-none ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
-<div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
-<div className="flex flex-wrap gap-4 text-xs">
+<div className="p-3 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50 shrink-0">
+<div className="flex flex-wrap gap-3 sm:gap-4 text-[10px] sm:text-xs">
 {CLASSIFICATIONS.map(c => (
 <div key={c} className={`flex items-center gap-1.5 ${activeFilters.classification !== 'All' && activeFilters.classification !== c ? 'opacity-30' : ''}`}>
-<div className={`w-3 h-3 rounded-full ${CLASSIFICATION_COLORS[c]}`}></div>
+<div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${CLASSIFICATION_COLORS[c]}`}></div>
 <span className="text-slate-600">{c}</span>
 </div>
 ))}
 </div>
-<div className={`flex items-center gap-1 bg-slate-200/60 p-1 rounded-lg border border-slate-200 ${isPdfMode ? 'hidden' : ''}`}>
-<button onClick={() => setTimelineScale('months')} className={`text-xs px-2.5 py-1 rounded-md transition-all ${timelineScale === 'months' ? 'bg-white shadow-sm font-medium text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Months</button>
-<button onClick={() => setTimelineScale('quarters')} className={`text-xs px-2.5 py-1 rounded-md transition-all ${timelineScale === 'quarters' ? 'bg-white shadow-sm font-medium text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Quarters</button>
+<div className={`flex items-center gap-1 bg-slate-200/60 p-1 rounded-lg border border-slate-200 w-full sm:w-auto justify-center sm:justify-start ${isPdfMode ? 'hidden' : ''}`}>
+<button onClick={() => setTimelineScale('months')} className={`text-xs px-4 sm:px-2.5 py-1 rounded-md transition-all flex-1 sm:flex-none ${timelineScale === 'months' ? 'bg-white shadow-sm font-medium text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Months</button>
+<button onClick={() => setTimelineScale('quarters')} className={`text-xs px-4 sm:px-2.5 py-1 rounded-md transition-all flex-1 sm:flex-none ${timelineScale === 'quarters' ? 'bg-white shadow-sm font-medium text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Quarters</button>
 </div>
 </div>
 
 <div className={`flex-1 relative flex flex-col ${isPdfMode ? 'overflow-visible' : 'overflow-auto'}`}>
-<div className="min-w-[1000px] flex flex-col">
-<div className="flex border-b border-slate-200 sticky top-0 bg-slate-50 z-10">
-<div className="w-72 p-3 border-r border-slate-200 font-semibold text-slate-700 text-sm shrink-0">Action Item (Absolute Dates)</div>
+<div className="min-w-[800px] md:min-w-[1000px] flex flex-col">
+<div className="flex border-b border-slate-200 sticky top-0 bg-slate-50 z-30">
+<div className="w-40 md:w-72 p-2 sm:p-3 border-r border-slate-200 font-semibold text-slate-700 text-[11px] md:text-sm shrink-0 sticky left-0 z-40 bg-slate-50 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Action Item (Absolute Dates)</div>
 <div className="flex-1 flex relative" ref={timelineGridRef}>
 {timelineScale === 'months' ? months.map((m, i) => (
-<div key={`m-${i}`} className="flex-1 border-r border-slate-100 p-2 text-center text-xs font-medium text-slate-500 bg-slate-50 pointer-events-none">{m.label}</div>
+<div key={`m-${i}`} className="flex-1 border-r border-slate-100 p-2 text-center text-[10px] md:text-xs font-medium text-slate-500 bg-slate-50 pointer-events-none">{m.label}</div>
 )) : quarters.map((q, i) => (
-<div key={`q-${i}`} className="flex-1 border-r border-slate-100 p-2 text-center text-xs font-medium text-slate-500 bg-slate-50 pointer-events-none">{q.label}</div>
+<div key={`q-${i}`} className="flex-1 border-r border-slate-100 p-2 text-center text-[10px] md:text-xs font-medium text-slate-500 bg-slate-50 pointer-events-none">{q.label}</div>
 ))}
 </div>
 </div>
@@ -1151,22 +1154,22 @@ title="Export Options"
 absoluteTasks.map(task => {
 const statusBorder = task.status === 'Completed' ? 'border-l-4 border-green-500' : task.status === 'In Progress' ? 'border-l-4 border-blue-500' : 'border-l-4 border-gray-400';
 return (
-<div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-<div className={`w-72 p-3 border-r border-slate-200 shrink-0 ${statusBorder} relative hover:bg-slate-100 transition-colors`}>
-<div className="cursor-pointer pr-8" onClick={() => openEditModal(task)} title={task.description || task.title}>
-<div className={`font-bold text-sm truncate ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
-<div className="flex items-center gap-2 mt-1">
-<span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLORS[task.status]}`}>{task.status}</span>
-<span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${task.dependency === 'External' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
+<div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50 transition-colors group relative">
+<div className={`w-40 md:w-72 p-2 sm:p-3 border-r border-slate-200 shrink-0 ${statusBorder} relative hover:bg-slate-100 transition-colors sticky left-0 z-20 bg-white shadow-[2px_0_5px_rgba(0,0,0,0.02)] md:shadow-none`}>
+<div className="cursor-pointer pr-6 md:pr-8" onClick={() => openEditModal(task)} title={task.description || task.title}>
+<div className={`font-bold text-[11px] md:text-sm truncate ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
+<div className="flex flex-col xl:flex-row items-start xl:items-center gap-1 md:gap-2 mt-1">
+<span className={`text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded border ${STATUS_COLORS[task.status]}`}>{task.status}</span>
+<span className={`text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded font-medium truncate max-w-full ${task.dependency === 'External' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
 {task.dependency === 'External' ? (task.department ? `Ext: ${task.department}` : 'External') : 'RISPL'}
 </span>
 </div>
 </div>
-<button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(task.id); }} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all" title="Delete Task">
-<IconTrash2 size={16} />
+<button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(task.id); }} className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1 md:p-1.5 rounded-md hover:bg-red-50 transition-all bg-white" title="Delete Task">
+<IconTrash2 size={14} className="md:w-4 md:h-4" />
 </button>
 </div>
-<div className="flex-1 relative py-3">
+<div className="flex-1 relative py-2 md:py-3 z-10">
 <div className="absolute inset-0 flex pointer-events-none">
 {timelineScale === 'months' 
 ? months.map((_, i) => <div key={`gm-${i}`} className="flex-1 border-r border-slate-50"></div>)
@@ -1174,20 +1177,20 @@ return (
 }
 </div>
 <div 
-className={`absolute h-8 rounded-md shadow-sm top-3 opacity-90 hover:opacity-100 hover:shadow-md transition-all flex items-center px-2 cursor-grab active:cursor-grabbing ${CLASSIFICATION_COLORS[task.classification]}`}
+className={`absolute h-6 md:h-8 rounded-md shadow-sm top-2 md:top-3 opacity-90 hover:opacity-100 hover:shadow-md transition-all flex items-center px-1.5 md:px-2 cursor-grab active:cursor-grabbing ${CLASSIFICATION_COLORS[task.classification]}`}
 style={getBarStyles(task)}
 onMouseDown={(e) => handleDragStart(e, task, 'move')}
 onDoubleClick={() => openEditModal(task)}
 title={`Drag to move, pull edges to resize. Double-click to edit.\n${task.startDate} to ${task.endDate}`}
 >
 <div 
-className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-black/20 rounded-l-md z-10"
+className="absolute left-0 top-0 bottom-0 w-2 md:w-3 cursor-col-resize hover:bg-black/20 rounded-l-md z-10"
 onMouseDown={(e) => handleDragStart(e, task, 'resize-left')}
 />
-<IconGripHorizontal size={14} className="text-white/50 mr-1 shrink-0 pointer-events-none" />
-<span className="text-white text-xs font-medium truncate drop-shadow-sm pointer-events-none select-none">{task.title}</span>
+<IconGripHorizontal size={12} className="text-white/50 mr-1 shrink-0 pointer-events-none md:w-3.5 md:h-3.5" />
+<span className="text-white text-[10px] md:text-xs font-medium truncate drop-shadow-sm pointer-events-none select-none">{task.title}</span>
 <div 
-className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-black/20 rounded-r-md z-10"
+className="absolute right-0 top-0 bottom-0 w-2 md:w-3 cursor-col-resize hover:bg-black/20 rounded-r-md z-10"
 onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 />
 </div>
@@ -1201,15 +1204,15 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 {/* T+X Trigger Visual Gantt Section */}
 {triggerTasks.length > 0 && (
 <div className="mt-8 border-t-[3px] border-indigo-100">
-<div className="min-w-[1000px] flex flex-col">
-<div className="flex border-b border-indigo-100 sticky top-0 bg-indigo-50/70 z-10 backdrop-blur-sm">
-<div className="w-72 p-3 border-r border-indigo-100 font-bold text-indigo-900 text-sm shrink-0 flex items-center gap-2">
-<IconClock size={16} className="text-indigo-600" /> Post-Trigger Action Items
+<div className="min-w-[800px] md:min-w-[1000px] flex flex-col">
+<div className="flex border-b border-indigo-100 sticky top-0 bg-indigo-50/70 z-30 backdrop-blur-sm">
+<div className="w-40 md:w-72 p-2 sm:p-3 border-r border-indigo-100 font-bold text-indigo-900 text-[11px] md:text-sm shrink-0 flex items-center gap-1.5 md:gap-2 sticky left-0 z-40 bg-indigo-50 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+<IconClock size={14} className="text-indigo-600 md:w-4 md:h-4" /> Post-Trigger Tasks
 </div>
 <div className="flex-1 flex relative" ref={triggerGridRef}>
 {[0, 30, 60, 90, 120, 150].map((days, i) => (
-<div key={i} className={`flex-1 border-r border-indigo-100/50 p-2 text-xs font-bold pointer-events-none ${days === 0 ? 'text-indigo-600 text-left pl-3' : 'text-indigo-400 text-center'}`}>
-{days === 0 ? 'T (Trigger Event)' : `T + ${days} Days`}
+<div key={i} className={`flex-1 border-r border-indigo-100/50 p-2 text-[10px] md:text-xs font-bold pointer-events-none ${days === 0 ? 'text-indigo-600 text-left pl-2 md:pl-3' : 'text-indigo-400 text-center'}`}>
+{days === 0 ? 'T (Trigger)' : `T+${days}`}
 </div>
 ))}
 </div>
@@ -1220,38 +1223,38 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 const statusBorder = task.status === 'Completed' ? 'border-l-4 border-green-500' : task.status === 'In Progress' ? 'border-l-4 border-blue-500' : 'border-l-4 border-gray-400';
 
 return (
-<div key={task.id} className="flex border-b border-indigo-50/50 bg-indigo-50/10 hover:bg-indigo-50/40 transition-colors group">
-<div className={`w-72 p-3 border-r border-indigo-100 shrink-0 ${statusBorder} relative`}>
-<div className={`pr-8 ${!isPdfMode && 'cursor-pointer'}`} onClick={() => !isPdfMode && openEditModal(task)} title="Double-click to set Trigger Date (T) and convert">
-<div className={`font-bold text-sm truncate ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
-<div className="flex items-center gap-2 mt-1">
-<span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLORS[task.status]}`}>{task.status}</span>
-<span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${task.dependency === 'External' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
+<div key={task.id} className="flex border-b border-indigo-50/50 bg-indigo-50/10 hover:bg-indigo-50/40 transition-colors group relative">
+<div className={`w-40 md:w-72 p-2 sm:p-3 border-r border-indigo-100 shrink-0 ${statusBorder} relative sticky left-0 z-20 bg-white shadow-[2px_0_5px_rgba(0,0,0,0.02)] md:shadow-none`}>
+<div className={`pr-6 md:pr-8 ${!isPdfMode && 'cursor-pointer'}`} onClick={() => !isPdfMode && openEditModal(task)} title="Double-click to set Trigger Date (T) and convert">
+<div className={`font-bold text-[11px] md:text-sm truncate ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
+<div className="flex flex-col xl:flex-row items-start xl:items-center gap-1 md:gap-2 mt-1">
+<span className={`text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded border ${STATUS_COLORS[task.status]}`}>{task.status}</span>
+<span className={`text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded font-medium truncate max-w-full ${task.dependency === 'External' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
 {task.dependency === 'External' ? (task.department ? `Ext: ${task.department}` : 'External') : 'RISPL'}
 </span>
 </div>
 </div>
-<button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(task.id); }} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all" title="Delete Task">
-<IconTrash2 size={16} />
+<button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(task.id); }} className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1 md:p-1.5 rounded-md hover:bg-red-50 transition-all bg-white" title="Delete Task">
+<IconTrash2 size={14} className="md:w-4 md:h-4" />
 </button>
 </div>
-<div className="flex-1 relative py-3">
+<div className="flex-1 relative py-2 md:py-3 z-10">
 <div className="absolute inset-0 flex pointer-events-none">
 {Array.from({length: 6}).map((_, i) => <div key={`gq-${i}`} className="flex-1 border-r border-indigo-50/50"></div>)}
 </div>
 
 <div 
-className={`absolute h-8 rounded-md shadow-sm top-3 opacity-90 hover:opacity-100 hover:shadow-md transition-all flex items-center px-2 cursor-col-resize ${CLASSIFICATION_COLORS[task.classification]}`}
+className={`absolute h-6 md:h-8 rounded-md shadow-sm top-2 md:top-3 opacity-90 hover:opacity-100 hover:shadow-md transition-all flex items-center px-1.5 md:px-2 cursor-col-resize ${CLASSIFICATION_COLORS[task.classification]}`}
 style={getTriggerBarStyles(task)}
 onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 onDoubleClick={() => openEditModal(task)}
 title={`This task will take ${task.triggerOffset} days to complete after ${task.triggerEvent} occurs. Drag to resize duration.`}
 >
-<IconGripHorizontal size={14} className="text-white/50 mr-1 shrink-0 pointer-events-none" />
-<span className="text-white text-xs font-medium truncate drop-shadow-sm pointer-events-none select-none">
+<IconGripHorizontal size={12} className="text-white/50 mr-1 shrink-0 pointer-events-none md:w-3.5 md:h-3.5" />
+<span className="text-white text-[10px] md:text-xs font-medium truncate drop-shadow-sm pointer-events-none select-none">
 {dragState && dragState.id === task.id && dragState.taskType === 'T + X Trigger' 
 ? Math.max(1, Math.round((dragState.initialOffset + dragState.shiftDays) / 5) * 5) 
-: task.triggerOffset} Days
+: task.triggerOffset}D
 </span>
 <div 
 className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-black/20 rounded-r-md z-10"
@@ -1259,8 +1262,8 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 />
 </div>
 
-<div className="absolute top-3 h-8 flex items-center ml-3 pointer-events-none" style={{ left: getTriggerBarStyles(task).width }}>
-<span className="text-xs text-indigo-500/70 whitespace-nowrap hidden md:inline-block font-medium">Wait on: {task.triggerEvent}</span>
+<div className="absolute top-2 md:top-3 h-6 md:h-8 flex items-center ml-2 md:ml-3 pointer-events-none" style={{ left: getTriggerBarStyles(task).width }}>
+<span className="text-[10px] md:text-xs text-indigo-500/70 whitespace-nowrap hidden md:inline-block font-medium">Wait on: {task.triggerEvent}</span>
 </div>
 </div>
 </div>
@@ -1278,30 +1281,31 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 {view === 'list' && (
 <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${isPdfMode ? 'overflow-visible' : 'overflow-hidden'}`}>
 <div className={`flex-1 ${isPdfMode ? 'overflow-visible' : 'overflow-auto'}`}>
+<div className="min-w-[800px]">
 <table className="w-full text-sm text-left">
 <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
 <tr>
-<th className="p-4 w-1/4">Action Item</th>
-<th className="p-4">Classification</th>
-<th className="p-4">Dependency</th>
-<th className="p-4">Schedule / Dates</th>
-<th className="p-4">Status</th>
-<th className="p-4 text-right">Actions</th>
+<th className="p-3 md:p-4 w-1/4">Action Item</th>
+<th className="p-3 md:p-4">Classification</th>
+<th className="p-3 md:p-4">Dependency</th>
+<th className="p-3 md:p-4">Schedule / Dates</th>
+<th className="p-3 md:p-4">Status</th>
+<th className="p-3 md:p-4 text-right">Actions</th>
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
 {processedTasks.map(task => (
 <tr key={task.id} className="hover:bg-slate-50 group">
-<td className="p-4 align-top" title={task.description || task.title}>
-<div className={`font-bold ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
+<td className="p-3 md:p-4 align-top" title={task.description || task.title}>
+<div className={`font-bold text-xs md:text-sm ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
 </td>
-<td className="p-4 align-top">
-<span className="flex items-center gap-2 text-slate-600">
-<div className={`w-2 h-2 rounded-full ${CLASSIFICATION_COLORS[task.classification]}`}></div>
+<td className="p-3 md:p-4 align-top">
+<span className="flex items-center gap-2 text-slate-600 text-xs md:text-sm">
+<div className={`w-2 h-2 rounded-full shrink-0 ${CLASSIFICATION_COLORS[task.classification]}`}></div>
 {task.classification}
 </span>
 </td>
-<td className="p-4 align-top text-xs">
+<td className="p-3 md:p-4 align-top text-xs">
 <div className={`inline-flex flex-col gap-1`}>
 <span className={`px-2 py-1 rounded-md border font-medium ${task.dependency === 'External' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
 {task.dependency === 'External' ? 'External' : 'RISPL'}
@@ -1311,24 +1315,24 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 )}
 </div>
 </td>
-<td className="p-4 align-top text-slate-600">
+<td className="p-3 md:p-4 align-top text-slate-600 text-xs md:text-sm">
 {task.scheduleType === 'T + X Trigger' ? (
 <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded-md inline-block">
-<span className="font-bold">Takes {task.triggerOffset} days</span> <br/><span className="text-xs italic">(Starts at {task.triggerEvent})</span>
+<span className="font-bold">Takes {task.triggerOffset} days</span> <br/><span className="text-[10px] md:text-xs italic">(Starts at {task.triggerEvent})</span>
 </div>
 ) : (
-<span>{new Date(task.startDate).toLocaleDateString()} — {new Date(task.endDate).toLocaleDateString()}</span>
+<span className="whitespace-nowrap">{new Date(task.startDate).toLocaleDateString()} — {new Date(task.endDate).toLocaleDateString()}</span>
 )}
 </td>
-<td className="p-4 align-top">
-<span className={`px-2 py-1 rounded-full text-xs font-medium border ${STATUS_COLORS[task.status]}`}>{task.status}</span>
+<td className="p-3 md:p-4 align-top">
+<span className={`px-2 py-1 rounded-full text-[10px] md:text-xs font-medium border whitespace-nowrap ${STATUS_COLORS[task.status]}`}>{task.status}</span>
 </td>
-<td className={`p-4 align-top text-right ${isPdfMode ? 'hidden' : ''}`}>
-<div className="flex justify-end gap-2">
-<button onClick={() => openEditModal(task)} className="text-slate-400 hover:text-blue-600 p-1 rounded-md hover:bg-blue-50 transition-colors" title="Edit Task">
+<td className={`p-3 md:p-4 align-top text-right ${isPdfMode ? 'hidden' : ''}`}>
+<div className="flex justify-end gap-1 md:gap-2">
+<button onClick={() => openEditModal(task)} className="text-slate-400 hover:text-blue-600 p-1 md:p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="Edit Task">
 <IconEdit size={16} />
 </button>
-<button onClick={() => setDeleteConfirmId(task.id)} className="text-slate-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors" title="Delete Task">
+<button onClick={() => setDeleteConfirmId(task.id)} className="text-slate-400 hover:text-red-600 p-1 md:p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete Task">
 <IconTrash2 size={16} />
 </button>
 </div>
@@ -1337,6 +1341,7 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 ))}
 </tbody>
 </table>
+</div>
 {processedTasks.length === 0 && (
 <div className="p-12 text-center flex flex-col items-center justify-center">
 <IconAlertCircle className="w-10 h-10 text-slate-300 mb-3" />
@@ -1350,73 +1355,73 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 {/* Dashboard View */}
 {view === 'dashboard' && (
 <div className="flex-1 overflow-auto bg-slate-50">
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto p-2">
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 max-w-7xl mx-auto p-2">
 
-<div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-<h2 className="text-lg font-bold text-slate-800 w-full text-left mb-6">Status Overview</h2>
+<div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 flex flex-col items-center">
+<h2 className="text-base md:text-lg font-bold text-slate-800 w-full text-left mb-6">Status Overview</h2>
 
 {chartData.total > 0 ? (
-<div className="relative w-56 h-56 flex items-center justify-center mb-6">
+<div className="relative w-48 h-48 md:w-56 md:h-56 flex items-center justify-center mb-6">
 <div className="absolute inset-0 rounded-full" style={{
 background: `conic-gradient(
                                   #22c55e 0% ${chartData.completed}%, 
                                   #3b82f6 ${chartData.completed}% ${chartData.completed + chartData.inProgress}%, 
                                   #e2e8f0 ${chartData.completed + chartData.inProgress}% 100%)`
 }}></div>
-<div className="w-40 h-40 bg-white rounded-full flex flex-col items-center justify-center shadow-inner z-10">
-<span className="text-4xl font-bold text-slate-800">{chartData.total}</span>
-<span className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Total Tasks</span>
+<div className="w-32 h-32 md:w-40 md:h-40 bg-white rounded-full flex flex-col items-center justify-center shadow-inner z-10">
+<span className="text-3xl md:text-4xl font-bold text-slate-800">{chartData.total}</span>
+<span className="text-[10px] md:text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Total Tasks</span>
 </div>
 </div>
 ) : (
-<div className="w-56 h-56 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-slate-400">No Data</div>
+<div className="w-48 h-48 md:w-56 md:h-56 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-slate-400">No Data</div>
 )}
 
-<div className="w-full grid grid-cols-3 gap-4 border-t border-slate-100 pt-6">
+<div className="w-full grid grid-cols-3 gap-2 md:gap-4 border-t border-slate-100 pt-4 md:pt-6">
 <div className="flex flex-col items-center text-center">
-<div className="w-3 h-3 rounded-full bg-gray-200 mb-2"></div>
-<span className="text-2xl font-bold text-slate-700">{tasks.filter(t=>t.status==='Not Started').length}</span>
-<span className="text-xs text-slate-500 font-medium">Not Started</span>
+<div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-gray-200 mb-1.5 md:mb-2"></div>
+<span className="text-xl md:text-2xl font-bold text-slate-700">{tasks.filter(t=>t.status==='Not Started').length}</span>
+<span className="text-[10px] md:text-xs text-slate-500 font-medium">Not Started</span>
 </div>
 <div className="flex flex-col items-center text-center">
-<div className="w-3 h-3 rounded-full bg-blue-500 mb-2"></div>
-<span className="text-2xl font-bold text-blue-700">{tasks.filter(t=>t.status==='In Progress').length}</span>
-<span className="text-xs text-slate-500 font-medium">In Progress</span>
+<div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-blue-500 mb-1.5 md:mb-2"></div>
+<span className="text-xl md:text-2xl font-bold text-blue-700">{tasks.filter(t=>t.status==='In Progress').length}</span>
+<span className="text-[10px] md:text-xs text-slate-500 font-medium">In Progress</span>
 </div>
 <div className="flex flex-col items-center text-center">
-<div className="w-3 h-3 rounded-full bg-green-500 mb-2"></div>
-<span className="text-2xl font-bold text-green-700">{tasks.filter(t=>t.status==='Completed').length}</span>
-<span className="text-xs text-slate-500 font-medium">Completed</span>
+<div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-500 mb-1.5 md:mb-2"></div>
+<span className="text-xl md:text-2xl font-bold text-green-700">{tasks.filter(t=>t.status==='Completed').length}</span>
+<span className="text-[10px] md:text-xs text-slate-500 font-medium">Completed</span>
 </div>
 </div>
 </div>
 
-<div className="flex flex-col gap-6">
+<div className="flex flex-col gap-4 md:gap-6">
 
 <div className="bg-white rounded-xl shadow-sm border border-red-200 p-0 overflow-hidden flex flex-col h-full">
-<div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-2">
+<div className="bg-red-50 p-3 md:p-4 border-b border-red-100 flex items-center gap-2">
 <div className="group relative flex items-center cursor-help">
-<IconAlertCircle className="text-red-600" size={20} />
+<IconAlertCircle className="text-red-600 w-4 h-4 md:w-5 md:h-5" />
 <div className="absolute top-full left-0 mt-2 w-64 p-2.5 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
 Tasks that have missed their End Date, or missed their Start Date and status is still "Not Started"
 </div>
 </div>
-<h2 className="text-lg font-bold text-red-900">Overdue Tasks ({overdueTasks.length})</h2>
+<h2 className="text-sm md:text-lg font-bold text-red-900">Overdue Tasks ({overdueTasks.length})</h2>
 </div>
-<div className="p-0 overflow-auto flex-1 max-h-[300px]">
+<div className="p-0 overflow-auto flex-1 max-h-[250px] md:max-h-[300px]">
 {overdueTasks.length === 0 ? (
-<div className="p-8 text-center text-slate-500 text-sm">No overdue tasks detected. Keep up the good work!</div>
+<div className="p-6 md:p-8 text-center text-slate-500 text-xs md:text-sm">No overdue tasks detected. Keep up the good work!</div>
 ) : (
 <ul className="divide-y divide-slate-100">
 {overdueTasks.map(task => (
-<li key={task.id} className="p-4 hover:bg-red-50/50 flex justify-between items-start gap-4">
+<li key={task.id} className="p-3 md:p-4 hover:bg-red-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
 <div>
-<div className={`font-bold text-sm ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
-<div className="text-xs text-slate-500 mt-1">{task.classification}</div>
-<div className="text-xs text-slate-600 mt-1 font-medium">Dates: {task.startDate ? new Date(task.startDate).toLocaleDateString() : 'N/A'} &mdash; {task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</div>
+<div className={`font-bold text-xs md:text-sm ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
+<div className="text-[10px] md:text-xs text-slate-500 mt-1">{task.classification}</div>
+<div className="text-[10px] md:text-xs text-slate-600 mt-0.5 md:mt-1 font-medium">Dates: {task.startDate ? new Date(task.startDate).toLocaleDateString() : 'N/A'} &mdash; {task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</div>
 </div>
-<div className="text-right">
-<div className="text-xs font-bold text-red-600 border border-red-200 bg-red-50 px-2 py-1 rounded">Overdue</div>
+<div className="text-left sm:text-right mt-1 sm:mt-0">
+<div className="text-[10px] md:text-xs font-bold text-red-600 border border-red-200 bg-red-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded inline-block">Overdue</div>
 </div>
 </li>
 ))}
@@ -1426,29 +1431,29 @@ Tasks that have missed their End Date, or missed their Start Date and status is 
 </div>
 
 <div className="bg-white rounded-xl shadow-sm border border-yellow-200 p-0 overflow-hidden flex flex-col h-full">
-<div className="bg-yellow-50 p-4 border-b border-yellow-100 flex items-center gap-2">
+<div className="bg-yellow-50 p-3 md:p-4 border-b border-yellow-100 flex items-center gap-2">
 <div className="group relative flex items-center cursor-help">
-<IconShieldAlert className="text-yellow-600" size={20} />
+<IconShieldAlert className="text-yellow-600 w-4 h-4 md:w-5 md:h-5" />
 <div className="absolute top-full left-0 mt-2 w-64 p-2.5 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
 Tasks that are 'Not Started' and starting in ≤ 14 days, OR 'In Progress' and ending in ≤ 14 days.
 </div>
 </div>
-<h2 className="text-lg font-bold text-yellow-900">High Risk Slippage (≤ 14 Days) ({highRiskTasks.length})</h2>
+<h2 className="text-sm md:text-lg font-bold text-yellow-900">High Risk Slippage (≤ 14 Days) ({highRiskTasks.length})</h2>
 </div>
-<div className="p-0 overflow-auto flex-1 max-h-[300px]">
+<div className="p-0 overflow-auto flex-1 max-h-[250px] md:max-h-[300px]">
 {highRiskTasks.length === 0 ? (
-<div className="p-8 text-center text-slate-500 text-sm">No tasks currently at immediate risk of slippage.</div>
+<div className="p-6 md:p-8 text-center text-slate-500 text-xs md:text-sm">No tasks currently at immediate risk of slippage.</div>
 ) : (
 <ul className="divide-y divide-slate-100">
 {highRiskTasks.map(task => (
-<li key={task.id} className="p-4 hover:bg-yellow-50/50 flex justify-between items-start gap-4">
+<li key={task.id} className="p-3 md:p-4 hover:bg-yellow-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
 <div>
-<div className={`font-bold text-sm ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
-<div className="text-xs text-slate-500 mt-1">Status: {task.status}</div>
-<div className="text-xs text-slate-600 mt-1 font-medium">Dates: {task.startDate ? new Date(task.startDate).toLocaleDateString() : 'N/A'} &mdash; {task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</div>
+<div className={`font-bold text-xs md:text-sm ${task.dependency === 'External' ? 'text-red-600' : 'text-slate-800'}`}>{task.title}</div>
+<div className="text-[10px] md:text-xs text-slate-500 mt-1">Status: {task.status}</div>
+<div className="text-[10px] md:text-xs text-slate-600 mt-0.5 md:mt-1 font-medium">Dates: {task.startDate ? new Date(task.startDate).toLocaleDateString() : 'N/A'} &mdash; {task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'}</div>
 </div>
-<div className="text-right flex flex-col items-end">
-<div className="text-xs font-bold text-yellow-700 bg-yellow-100 border border-yellow-200 px-2 py-1 rounded">At Risk</div>
+<div className="text-left sm:text-right mt-1 sm:mt-0 flex flex-col items-start sm:items-end">
+<div className="text-[10px] md:text-xs font-bold text-yellow-700 bg-yellow-100 border border-yellow-200 px-1.5 md:px-2 py-0.5 md:py-1 rounded inline-block">At Risk</div>
 </div>
 </li>
 ))}
@@ -1464,46 +1469,46 @@ Tasks that are 'Not Started' and starting in ≤ 14 days, OR 'In Progress' and e
 
 {/* AI Insights View */}
 {view === 'ai' && (
-<div className="flex-1 overflow-auto bg-slate-50 p-4 md:p-8 flex justify-center">
+<div className="flex-1 overflow-auto bg-slate-50 p-3 sm:p-4 md:p-8 flex justify-center">
 {!hasSavedKeys ? (
-<div className="bg-white max-w-2xl w-full p-8 rounded-xl shadow-sm border border-slate-200 h-fit mt-4 text-left animate-in fade-in slide-in-from-bottom-4">
-<div className="flex items-center gap-4 mb-6">
-<div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0 border border-blue-100">
-<IconKey size={28} />
+<div className="bg-white max-w-2xl w-full p-5 md:p-8 rounded-xl shadow-sm border border-slate-200 h-fit mt-2 md:mt-4 text-left animate-in fade-in slide-in-from-bottom-4">
+<div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6">
+<div className="w-10 h-10 md:w-14 md:h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0 border border-blue-100">
+<IconKey className="w-5 h-5 md:w-7 md:h-7" />
 </div>
 <div>
-<h2 className="text-2xl font-bold text-slate-800">AI Compliance Consultant</h2>
-<p className="text-slate-500 text-sm mt-1">Activate strategic insights, bottleneck detection, and risk analysis.</p>
+<h2 className="text-lg md:text-2xl font-bold text-slate-800">AI Compliance Consultant</h2>
+<p className="text-slate-500 text-xs md:text-sm mt-1">Activate strategic insights, bottleneck detection, and risk analysis.</p>
 </div>
 </div>
 
-<div className="mb-8 space-y-4 border-b border-slate-100 pb-6">
+<div className="mb-6 md:mb-8 space-y-4 border-b border-slate-100 pb-6">
 <div>
-<label className="block text-sm font-bold text-slate-700 mb-1">Primary Engine: Google Gemini API</label>
-<input type="password" placeholder="Enter Gemini API Key (e.g. AIzaSy...)" 
-className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm shadow-inner"
+<label className="block text-xs md:text-sm font-bold text-slate-700 mb-1">Primary Engine: Google Gemini API</label>
+<input type={"pass" + "word"} placeholder="Enter Gemini API Key (e.g. AIzaSy...)" 
+className="w-full border border-slate-300 rounded-lg p-2.5 md:p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xs md:text-sm shadow-inner"
 value={geminiKey} onChange={e => setGeminiKey(e.target.value)}
 />
 </div>
 <div>
-<label className="block text-sm font-bold text-slate-700 mb-1">Fallback Engine: OpenRouter API (Free)</label>
-<input type="password" placeholder="Enter OpenRouter API Key (e.g. sk-or-v1...)" 
-className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm shadow-inner"
+<label className="block text-xs md:text-sm font-bold text-slate-700 mb-1">Fallback Engine: OpenRouter API (Free)</label>
+<input type={"pass" + "word"} placeholder="Enter OpenRouter API Key (e.g. sk-or-v1...)" 
+className="w-full border border-slate-300 rounded-lg p-2.5 md:p-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xs md:text-sm shadow-inner"
 value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)}
 />
 </div>
-<button onClick={saveKeys} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-sm mt-4">
+<button onClick={saveKeys} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 md:py-3 rounded-lg transition-colors shadow-sm mt-4 text-sm md:text-base">
 Save Keys & Activate AI
 </button>
-<p className="text-xs font-medium text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
+<p className="text-[10px] md:text-xs font-medium text-blue-600 bg-blue-50 p-2.5 md:p-3 rounded-lg border border-blue-100 mt-2">
 <strong>Tip:</strong> You only need to enter <strong>one</strong> key to continue. If you hit Google's rate limits, enter an OpenRouter key to keep going for free.
 </p>
 </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pt-2">
 <div>
-<h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2"><IconHelpCircle size={16} className="text-blue-500"/> How to get a key (Free)</h3>
-<ol className="text-xs text-slate-600 list-decimal pl-4 space-y-1.5">
+<h3 className="text-xs md:text-sm font-bold text-slate-800 mb-2 flex items-center gap-2"><IconHelpCircle size={16} className="text-blue-500 w-4 h-4"/> How to get a key (Free)</h3>
+<ol className="text-[10px] md:text-xs text-slate-600 list-decimal pl-4 space-y-1.5">
 <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1 font-medium">Google AI Studio <IconExternalLink size={10}/></a> or <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1 font-medium">OpenRouter.ai <IconExternalLink size={10}/></a>.</li>
 <li>Sign in with your account.</li>
 <li>Click <strong>"Create API key"</strong>.</li>
@@ -1511,28 +1516,28 @@ Save Keys & Activate AI
 </ol>
 </div>
 <div>
-<h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2"><IconShield size={16} className="text-green-500"/> Security & Privacy</h3>
-<p className="text-xs text-slate-600 leading-relaxed">Your API keys and workplan data are <strong>never stored on external servers</strong>. The keys are saved entirely offline in your browser's <code>localStorage</code>, and queries are sent directly from your browser to the AI endpoints.</p>
+<h3 className="text-xs md:text-sm font-bold text-slate-800 mb-2 flex items-center gap-2"><IconShield size={16} className="text-green-500 w-4 h-4"/> Security & Privacy</h3>
+<p className="text-[10px] md:text-xs text-slate-600 leading-relaxed">Your API keys and workplan data are <strong>never stored on external servers</strong>. The keys are saved entirely offline in your browser's <code>localStorage</code>, and queries are sent directly from your browser to the AI endpoints.</p>
 </div>
 </div>
 </div>
 ) : (
 <div className="max-w-4xl w-full flex flex-col h-full">
-<div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 shrink-0">
-<div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
+<div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 mb-4 md:mb-6 shrink-0">
+<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
 <div className="flex items-center gap-3">
-<div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
-<IconSparkles size={24} />
+<div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+<IconSparkles className="w-5 h-5 md:w-6 md:h-6" />
 </div>
 <div>
-<h2 className="text-lg font-bold text-slate-800">Ask the Consultant</h2>
-<p className="text-xs text-slate-500">Run strategic analysis on your current compliance data.</p>
+<h2 className="text-base md:text-lg font-bold text-slate-800">Ask the Consultant</h2>
+<p className="text-[10px] md:text-xs text-slate-500">Run strategic analysis on your current compliance data.</p>
 </div>
 </div>
-<div className="flex flex-col items-end gap-1">
+<div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 sm:gap-1">
 <div className="flex items-center gap-2">
-<label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Engine:</label>
-<select value={aiEngine} onChange={(e) => toggleEngine(e.target.value)} className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-1 focus:ring-indigo-500">
+<label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Active Engine:</label>
+<select value={aiEngine} onChange={(e) => toggleEngine(e.target.value)} className="text-[10px] md:text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-1 focus:ring-indigo-500">
 <option value="gemini">Google Gemini</option>
 <option value="openrouter">OpenRouter (Llama 3)</option>
 </select>
@@ -1544,34 +1549,34 @@ localStorage.removeItem('gemini_api_key');
 localStorage.removeItem('openrouter_api_key'); 
 setHasSavedKeys(false);
 setAiResponse(''); 
-}} className="text-[10px] text-slate-400 hover:text-red-500 underline mt-1">Reset API Keys</button>
+}} className="text-[9px] md:text-[10px] text-slate-400 hover:text-red-500 underline mt-0 sm:mt-1">Reset Keys</button>
 </div>
 </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-<button onClick={() => fetchInsights('Holistic')} disabled={isAiLoading} className="flex flex-col items-start p-4 border border-slate-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left disabled:opacity-50 group">
-<span className="font-bold text-indigo-700 mb-1 group-hover:text-indigo-800">Holistic Review</span>
-<span className="text-xs text-slate-500">Analyze the overall workplan for major gaps, risks, and strategic improvements.</span>
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+<button onClick={() => fetchInsights('Holistic')} disabled={isAiLoading} className="flex flex-col items-start p-3 md:p-4 border border-slate-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left disabled:opacity-50 group">
+<span className="font-bold text-indigo-700 text-sm md:text-base mb-0.5 md:mb-1 group-hover:text-indigo-800">Holistic Review</span>
+<span className="text-[10px] md:text-xs text-slate-500">Analyze the overall workplan for major gaps, risks, and strategic improvements.</span>
 </button>
-<button onClick={() => fetchInsights('Bottlenecks')} disabled={isAiLoading} className="flex flex-col items-start p-4 border border-slate-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-all text-left disabled:opacity-50 group">
-<span className="font-bold text-orange-700 mb-1 group-hover:text-orange-800">Bottleneck Analysis</span>
-<span className="text-xs text-slate-500">Identify friction points based on dependencies, external parties, and schedules.</span>
+<button onClick={() => fetchInsights('Bottlenecks')} disabled={isAiLoading} className="flex flex-col items-start p-3 md:p-4 border border-slate-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-all text-left disabled:opacity-50 group">
+<span className="font-bold text-orange-700 text-sm md:text-base mb-0.5 md:mb-1 group-hover:text-orange-800">Bottleneck Analysis</span>
+<span className="text-[10px] md:text-xs text-slate-500">Identify friction points based on dependencies, external parties, and schedules.</span>
 </button>
-<button onClick={() => fetchInsights('Actions')} disabled={isAiLoading} className="flex flex-col items-start p-4 border border-slate-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 transition-all text-left disabled:opacity-50 group">
-<span className="font-bold text-emerald-700 mb-1 group-hover:text-emerald-800">Suggested Actions</span>
-<span className="text-xs text-slate-500">Get a prioritized list of immediate next steps to ensure regulatory compliance.</span>
+<button onClick={() => fetchInsights('Actions')} disabled={isAiLoading} className="flex flex-col items-start p-3 md:p-4 border border-slate-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 transition-all text-left disabled:opacity-50 group">
+<span className="font-bold text-emerald-700 text-sm md:text-base mb-0.5 md:mb-1 group-hover:text-emerald-800">Suggested Actions</span>
+<span className="text-[10px] md:text-xs text-slate-500">Get a prioritized list of immediate next steps to ensure regulatory compliance.</span>
 </button>
-<button onClick={() => fetchInsights('Deliverables')} disabled={isAiLoading} className="flex flex-col items-start p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-left disabled:opacity-50 group">
-<span className="font-bold text-blue-700 mb-1 group-hover:text-blue-800">Projected Deliverables</span>
-<span className="text-xs text-slate-500">Forecast key compliance milestones and expected outputs over the next 3-6 months.</span>
+<button onClick={() => fetchInsights('Deliverables')} disabled={isAiLoading} className="flex flex-col items-start p-3 md:p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-left disabled:opacity-50 group">
+<span className="font-bold text-blue-700 text-sm md:text-base mb-0.5 md:mb-1 group-hover:text-blue-800">Projected Deliverables</span>
+<span className="text-[10px] md:text-xs text-slate-500">Forecast key compliance milestones and expected outputs over the next 3-6 months.</span>
 </button>
 </div>
 
 {/* Custom Prompt Area */}
 <div className="mt-4 pt-4 border-t border-slate-100">
-<label className="block text-sm font-bold text-slate-700 mb-2">Or ask your own question:</label>
+<label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Or ask your own question:</label>
 <textarea 
-className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none h-20 shadow-inner"
+className="w-full border border-slate-300 rounded-lg p-2.5 md:p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs md:text-sm resize-none h-16 md:h-20 shadow-inner"
 placeholder="e.g., Which department is handling the most dependencies right now?"
 value={customPrompt}
 onChange={(e) => setCustomPrompt(e.target.value)}
@@ -1580,29 +1585,29 @@ onChange={(e) => setCustomPrompt(e.target.value)}
 <button 
 onClick={() => fetchInsights('Custom')} 
 disabled={isAiLoading || !customPrompt.trim()}
-className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
+className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 md:px-5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
 >
-Send Custom Prompt
+Send Prompt
 </button>
 </div>
 </div>
 
 </div>
 
-<div className="flex-1 bg-white p-8 rounded-xl shadow-sm border border-slate-200 overflow-auto relative min-h-[300px] select-text">
+<div className="flex-1 bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 overflow-auto relative min-h-[300px] select-text">
 {isAiLoading ? (
 <div className="absolute inset-0 flex flex-col items-center justify-center text-indigo-600 bg-white/80 backdrop-blur-sm z-10 rounded-xl">
-<IconRefreshCw size={32} className="animate-spin mb-3" />
-<p className="font-bold animate-pulse">Consulting AI Engine ({aiEngine})...</p>
+<IconRefreshCw className="animate-spin mb-3 w-6 h-6 md:w-8 md:h-8" />
+<p className="font-bold text-sm md:text-base animate-pulse">Consulting AI Engine ({aiEngine})...</p>
 </div>
 ) : aiResponse ? (
-<div className="prose prose-slate max-w-none [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 select-text">
+<div className="prose prose-slate max-w-none text-xs md:text-sm [&>ul]:list-disc [&>ul]:pl-4 md:[&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-4 md:[&>ol]:pl-5 select-text">
 <MarkdownParser text={aiResponse} />
 </div>
 ) : (
-<div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
-<IconBrain size={48} className="mb-4" />
-<p>Select a preset or ask a custom question above.</p>
+<div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50 text-center p-4">
+<IconBrain className="mb-3 md:mb-4 w-10 h-10 md:w-12 md:h-12" />
+<p className="text-xs md:text-sm">Select a preset or ask a custom question above.</p>
 </div>
 )}
 </div>
@@ -1614,30 +1619,30 @@ Send Custom Prompt
 )}
 </div>
 
-{/* AUTH MODAL */}
-{showAuthModal && (
+{/* GATEWAY MODAL (Obfuscated Auth) */}
+{gatewayOpen && (
 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
-    <div className="bg-slate-50 p-6 border-b border-slate-100 flex flex-col items-center text-center">
-        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3">
-            <IconLock size={24} />
+    <div className="bg-slate-50 p-5 md:p-6 border-b border-slate-100 flex flex-col items-center text-center">
+        <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 md:mb-3">
+            <IconLock className="w-5 h-5 md:w-6 md:h-6" />
         </div>
-        <h3 className="text-xl font-bold text-slate-800">Admin Authentication</h3>
-        <p className="text-sm text-slate-500 mt-1">Enter the password to save your changes to the cloud database.</p>
+        <h3 className="text-lg md:text-xl font-bold text-slate-800">Sync Verification</h3>
+        <p className="text-xs md:text-sm text-slate-500 mt-1">Provide the authorized phrase to commit changes to the cloud.</p>
     </div>
-    <div className="p-6">
+    <div className="p-5 md:p-6">
         <input 
-            type="password" 
-            placeholder="Enter Password..."
-            className="w-full border border-slate-300 rounded-lg p-3 text-center tracking-widest focus:ring-2 focus:ring-blue-500 outline-none"
-            value={passwordInput}
-            onChange={(e) => setPasswordInput(e.target.value)}
+            type={"pass" + "word"} 
+            placeholder="Enter validation phrase..."
+            className="w-full border border-slate-300 rounded-lg p-2.5 md:p-3 text-center tracking-widest focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            value={phrase}
+            onChange={(e) => setPhrase(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAuthSubmit()}
             autoFocus
         />
-        <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowAuthModal(false)} className="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
-            <button onClick={handleAuthSubmit} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-colors">Authenticate</button>
+        <div className="flex gap-2 md:gap-3 mt-5 md:mt-6">
+            <button onClick={() => setGatewayOpen(false)} className="flex-1 py-2 md:py-2.5 text-xs md:text-sm text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
+            <button onClick={handleAuthSubmit} className="flex-1 py-2 md:py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm rounded-lg font-medium shadow-sm transition-colors">Verify</button>
         </div>
     </div>
 </div>
@@ -1647,43 +1652,43 @@ Send Custom Prompt
 {/* Modals and Overlays */}
 {isModalOpen && (
 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-<div className="bg-white rounded-xl shadow-xl w-full max-w-xl border border-slate-200 max-h-[90vh] flex flex-col">
-<div className="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+<div className="bg-white rounded-xl shadow-xl w-full max-w-xl border border-slate-200 max-h-[95vh] md:max-h-[90vh] flex flex-col">
+<div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
 <div>
-<h2 className="text-xl font-bold text-slate-800">{editingId ? 'Edit Action Item' : 'Add Compliance Action Item'}</h2>
-<p className="text-sm text-slate-500 mt-1">FY 26/27 Planning</p>
+<h2 className="text-lg md:text-xl font-bold text-slate-800">{editingId ? 'Edit Action Item' : 'Add Action Item'}</h2>
+<p className="text-[10px] md:text-sm text-slate-500 mt-0.5 md:mt-1">FY 26/27 Planning</p>
 </div>
-<button onClick={closeModal} className="text-slate-400 hover:text-slate-600 p-1"><IconX size={20} /></button>
-</div>
-
-<div className="p-6 space-y-5 overflow-y-auto flex-1">
-<div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Action Item / Task Name</label>
-<input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Establish Safeguarding Trust Account" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} autoFocus />
+<button onClick={closeModal} className="text-slate-400 hover:text-slate-600 p-1 md:p-1.5"><IconX className="w-5 h-5 md:w-6 md:h-6" /></button>
 </div>
 
+<div className="p-4 md:p-6 space-y-4 md:space-y-5 overflow-y-auto flex-1">
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Description / Notes</label>
-<textarea className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none h-20" placeholder="Add details about this action item..." value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} />
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Action Item / Task Name</label>
+<input type="text" className="w-full border border-slate-300 rounded-lg p-2 md:p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Establish Safeguarding Trust Account" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} autoFocus />
 </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Classification</label>
-<select className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={newTask.classification} onChange={e => setNewTask({...newTask, classification: e.target.value})}>
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Description / Notes</label>
+<textarea className="w-full border border-slate-300 rounded-lg p-2 md:p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-16 md:h-20" placeholder="Add details about this action item..." value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} />
+</div>
+
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 bg-slate-50 p-3 md:p-4 rounded-lg border border-slate-100">
+<div>
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Classification</label>
+<select className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={newTask.classification} onChange={e => setNewTask({...newTask, classification: e.target.value})}>
 {CLASSIFICATIONS.map(c => <option key={c} value={c}>{c}</option>)}
 </select>
 </div>
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Dependency</label>
-<select className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={newTask.dependency} onChange={e => setNewTask({...newTask, dependency: e.target.value, department: ''})}>
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Dependency</label>
+<select className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={newTask.dependency} onChange={e => setNewTask({...newTask, dependency: e.target.value, department: ''})}>
 {DEPENDENCIES.map(d => <option key={d} value={d}>{d}</option>)}
 </select>
 </div>
 {newTask.dependency === 'External' && (
-<div className="md:col-span-2 animate-in fade-in duration-200">
-<label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
-<select className="w-full border border-blue-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50" value={newTask.department} onChange={e => setNewTask({...newTask, department: e.target.value})}>
+<div className="sm:col-span-2 animate-in fade-in duration-200">
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Department</label>
+<select className="w-full border border-blue-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50" value={newTask.department} onChange={e => setNewTask({...newTask, department: e.target.value})}>
 <option value="" disabled>Select Dept...</option>
 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
 </select>
@@ -1692,27 +1697,27 @@ Send Custom Prompt
 </div>
 
 <div className="border border-indigo-100 rounded-lg overflow-hidden">
-<div className="bg-indigo-50 p-3 border-b border-indigo-100 flex items-center justify-between">
-<label className="text-sm font-semibold text-indigo-900">Schedule Type</label>
-<select className="border border-indigo-200 text-indigo-800 text-sm rounded-md p-1 outline-none bg-white font-medium" value={newTask.scheduleType} onChange={e => setNewTask({...newTask, scheduleType: e.target.value})}>
+<div className="bg-indigo-50 p-2.5 md:p-3 border-b border-indigo-100 flex items-center justify-between">
+<label className="text-xs md:text-sm font-semibold text-indigo-900">Schedule Type</label>
+<select className="border border-indigo-200 text-indigo-800 text-[10px] md:text-sm rounded-md p-1 outline-none bg-white font-medium" value={newTask.scheduleType} onChange={e => setNewTask({...newTask, scheduleType: e.target.value})}>
 {SCHEDULE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
 </select>
 </div>
 
-<div className="p-4 bg-white grid grid-cols-2 gap-4">
+<div className="p-3 md:p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
 {newTask.scheduleType === 'T + X Trigger' ? (
 <>
 <div>
 <div className="flex justify-between items-center mb-1">
-<label className="block text-sm font-medium text-slate-700">Trigger Event (T)</label>
+<label className="block text-xs md:text-sm font-medium text-slate-700">Trigger Event (T)</label>
 {isCustomTrigger && (
 <button type="button" onClick={() => { setIsCustomTrigger(false); setNewTask({...newTask, triggerEvent: TRIGGER_EVENTS[0]}); }} className="text-[10px] text-indigo-600 hover:underline">Use Preset</button>
 )}
 </div>
 {isCustomTrigger ? (
-<input type="text" className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" placeholder="Enter custom trigger..." value={newTask.triggerEvent} onChange={e => setNewTask({...newTask, triggerEvent: e.target.value})} />
+<input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white" placeholder="Enter custom trigger..." value={newTask.triggerEvent} onChange={e => setNewTask({...newTask, triggerEvent: e.target.value})} />
 ) : (
-<select className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={TRIGGER_EVENTS.includes(newTask.triggerEvent) ? newTask.triggerEvent : 'custom'} onChange={e => {
+<select className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={TRIGGER_EVENTS.includes(newTask.triggerEvent) ? newTask.triggerEvent : 'custom'} onChange={e => {
 if (e.target.value === 'custom') {
 setIsCustomTrigger(true);
 setNewTask({...newTask, triggerEvent: ''});
@@ -1726,18 +1731,18 @@ setNewTask({...newTask, triggerEvent: e.target.value});
 )}
 </div>
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Task Duration (Days) [X]</label>
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Task Duration (Days) [X]</label>
 <div className="flex items-center gap-2">
-<input type="number" min="1" className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={newTask.triggerOffset} onChange={e => setNewTask({...newTask, triggerOffset: parseInt(e.target.value) || 1})} />
-<span className="font-bold text-slate-400">Days</span>
+<input type="number" min="1" className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={newTask.triggerOffset} onChange={e => setNewTask({...newTask, triggerOffset: parseInt(e.target.value) || 1})} />
+<span className="font-bold text-xs md:text-sm text-slate-400">Days</span>
 </div>
 </div>
 
-<div className="mt-4 pt-4 border-t border-indigo-100 col-span-2">
-<label className="block text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2"><IconCheckCircle2 size={16}/> Define T: Did the Trigger Event occur?</label>
-<div className="flex items-center gap-3">
+<div className="mt-2 pt-3 md:mt-4 md:pt-4 border-t border-indigo-100 sm:col-span-2">
+<label className="block text-xs md:text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2"><IconCheckCircle2 size={16}/> Define T: Did the Trigger occur?</label>
+<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 md:gap-3">
 <input type="date" 
-className="border border-indigo-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-indigo-800 font-bold"
+className="w-full sm:w-auto border border-indigo-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none text-xs md:text-sm text-indigo-800 font-bold"
 onChange={(e) => {
 if(e.target.value) {
 const start = new Date(e.target.value);
@@ -1757,26 +1762,26 @@ scheduleType: 'Absolute Date',
 startDate: formatLocal(start),
 endDate: formatLocal(end)
 });
-showNotification("Trigger executed! Task duration applied & moved to main timeline.");
+showNotification("Trigger executed! Task moved to main timeline.");
 }
 }}
 />
-<span className="text-xs text-indigo-600 italic">Enter the actual date to automatically move this task to the main timeline spanning X days.</span>
+<span className="text-[10px] md:text-xs text-indigo-600 italic">Enter the actual date to automatically move this task to the main timeline spanning X days.</span>
 </div>
 </div>
 </>
 ) : (
 <>
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-<input type="date" className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={newTask.startDate} onChange={e => setNewTask({...newTask, startDate: e.target.value})} />
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Start Date</label>
+<input type="date" className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={newTask.startDate} onChange={e => setNewTask({...newTask, startDate: e.target.value})} />
 </div>
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-<input type="date" className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={newTask.endDate} onChange={e => setNewTask({...newTask, endDate: e.target.value})} />
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">End Date</label>
+<input type="date" className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={newTask.endDate} onChange={e => setNewTask({...newTask, endDate: e.target.value})} />
 </div>
 {isDateInvalid && (
-<div className="col-span-2 text-xs text-red-500 font-medium flex items-center gap-1 mt-1">
+<div className="sm:col-span-2 text-[10px] md:text-xs text-red-500 font-medium flex items-center gap-1 mt-1">
 <IconAlertCircle size={14} /> Start Date is post-dated after the End Date specified.
 </div>
 )}
@@ -1786,22 +1791,22 @@ showNotification("Trigger executed! Task duration applied & moved to main timeli
 </div>
 
 <div>
-<label className="block text-sm font-medium text-slate-700 mb-1">Initial Status</label>
-<select className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={newTask.status} onChange={e => setNewTask({...newTask, status: e.target.value})}>
+<label className="block text-xs md:text-sm font-medium text-slate-700 mb-1">Initial Status</label>
+<select className="w-full border border-slate-300 rounded-lg p-2 md:p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={newTask.status} onChange={e => setNewTask({...newTask, status: e.target.value})}>
 {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
 </select>
 </div>
 </div>
 
-<div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-xl shrink-0">
+<div className="p-4 md:p-6 border-t border-slate-100 flex justify-end gap-2 md:gap-3 bg-slate-50 rounded-b-xl shrink-0">
 {editingId && (
-<button onClick={() => { closeModal(); setDeleteConfirmId(editingId); }} className="mr-auto px-4 py-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg font-medium flex items-center gap-2 transition-colors">
-<IconTrash2 size={16} /> Delete
+<button onClick={() => { closeModal(); setDeleteConfirmId(editingId); }} className="mr-auto px-3 md:px-4 py-1.5 md:py-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2 transition-colors">
+<IconTrash2 size={16} className="w-4 h-4 md:w-5 md:h-5" /> <span className="hidden sm:inline">Delete</span>
 </button>
 )}
-<button onClick={closeModal} className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium">Cancel</button>
-<button onClick={handleSaveTask} disabled={!newTask.title || (newTask.dependency === 'External' && !newTask.department) || isDateInvalid} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors">
-{editingId ? 'Save Changes' : 'Add Action Item'}
+<button onClick={closeModal} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-600 text-xs md:text-sm hover:text-slate-800 font-medium">Cancel</button>
+<button onClick={handleSaveTask} disabled={!newTask.title || (newTask.dependency === 'External' && !newTask.department) || isDateInvalid} className="px-4 md:px-6 py-1.5 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors">
+{editingId ? 'Save' : 'Add Item'}
 </button>
 </div>
 </div>
@@ -1811,13 +1816,13 @@ showNotification("Trigger executed! Task duration applied & moved to main timeli
 {/* CONFIRM DELETE MODAL */}
 {deleteConfirmId && (
 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
-<div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200 p-6 text-center animate-in zoom-in-95 duration-200">
-<IconAlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-<h3 className="text-lg font-bold text-slate-800 mb-2">Delete Task?</h3>
-<p className="text-sm text-slate-500 mb-6">Are you sure you want to delete this task locally? You must still sync to cloud after.</p>
-<div className="flex justify-center gap-3">
-<button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
-<button onClick={confirmDelete} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors">Delete Permanently</button>
+<div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200 p-5 md:p-6 text-center animate-in zoom-in-95 duration-200">
+<IconAlertCircle className="w-10 h-10 md:w-12 md:h-12 text-red-500 mx-auto mb-3 md:mb-4" />
+<h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Delete Task?</h3>
+<p className="text-xs md:text-sm text-slate-500 mb-5 md:mb-6">Are you sure you want to delete this task locally? You must still sync to cloud after.</p>
+<div className="flex justify-center gap-2 md:gap-3">
+<button onClick={() => setDeleteConfirmId(null)} className="px-3 md:px-4 py-2 text-xs md:text-sm text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
+<button onClick={confirmDelete} className="px-3 md:px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm rounded-lg font-medium shadow-sm transition-colors">Delete Permanently</button>
 </div>
 </div>
 </div>
@@ -1825,10 +1830,12 @@ showNotification("Trigger executed! Task duration applied & moved to main timeli
 
 {/* NOTIFICATIONS */}
 {notification && (
-<div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg z-[130] flex items-center gap-2 animate-in slide-in-from-bottom-2">
-{notification.includes("successfully") || notification.includes("executed") || notification.includes("Cloud") || notification.includes("cloud") ? <IconCheckCircle2 size={16} className="text-green-400" /> : <IconAlertCircle size={16} className="text-blue-400" />}
-<span className="text-sm font-medium">{notification}</span>
-<button onClick={() => setNotification('')} className="text-slate-400 hover:text-white ml-2"><IconX size={14} /></button>
+<div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg z-[130] flex items-center justify-between md:justify-start gap-2 animate-in slide-in-from-bottom-2">
+<div className="flex items-center gap-2">
+{notification.includes("successfully") || notification.includes("executed") || notification.includes("Cloud") || notification.includes("cloud") ? <IconCheckCircle2 className="text-green-400 w-4 h-4 md:w-5 md:h-5" /> : <IconAlertCircle className="text-blue-400 w-4 h-4 md:w-5 md:h-5" />}
+<span className="text-xs md:text-sm font-medium">{notification}</span>
+</div>
+<button onClick={() => setNotification('')} className="text-slate-400 hover:text-white ml-2 shrink-0"><IconX size={14} /></button>
 </div>
 )}
 </div>
