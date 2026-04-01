@@ -67,6 +67,8 @@ const IconChevronDown = (p) => <SVGIcon {...p}><path d="m6 9 6 6 6-6"/></SVGIcon
 const IconExternalLink = (p) => <SVGIcon {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></SVGIcon>;
 const IconShield = (p) => <SVGIcon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></SVGIcon>;
 const IconHelpCircle = (p) => <SVGIcon {...p}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></SVGIcon>;
+const IconLock = (p) => <SVGIcon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></SVGIcon>;
+const IconUnlock = (p) => <SVGIcon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></SVGIcon>;
 
 // --- 2. Constants ---
 const CLASSIFICATIONS = ['Governance & Oversight', 'Risk Assessment & Framework', 'Systems & Technology', 'Operational Processes', 'Team Training', 'Regulatory Readiness'];
@@ -75,6 +77,9 @@ const DEPENDENCIES = ['RISPL', 'External'];
 const DEPARTMENTS = ['Finance', 'Product', 'Legal', 'Risk', 'Operations', 'IT'];
 const SCHEDULE_TYPES = ['Absolute Date', 'T + X Trigger'];
 const TRIGGER_EVENTS = ['IPA', 'Final License Grant', 'Go-Live'];
+
+// THE MASTER PASSWORD FOR SAVING
+const ADMIN_PASSWORD = "rzpcmp2026"; 
 
 const CLASSIFICATION_COLORS = {
 'Governance & Oversight': 'bg-purple-500', 'Risk Assessment & Framework': 'bg-red-500',
@@ -123,9 +128,15 @@ const [isModalOpen, setIsModalOpen] = useState(false);
 const [editingId, setEditingId] = useState(null);
 const [loading, setLoading] = useState(true);
 
-// --- NEW: UNDO/REDO ENGINE STATE ---
+// --- UNDO/REDO ENGINE STATE ---
 const [historyState, setHistoryState] = useState({ stack: [], step: -1 });
 const isUndoRedo = useRef(false);
+
+// --- AUTH & SYNC STATE ---
+const [isSessionAuthenticated, setIsSessionAuthenticated] = useState(!!sessionStorage.getItem('sync_auth'));
+const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+const [showAuthModal, setShowAuthModal] = useState(false);
+const [passwordInput, setPasswordInput] = useState('');
 
 const fileInputRef = useRef(null);
 const timelineGridRef = useRef(null);
@@ -167,12 +178,10 @@ triggerOffset: 30, startDate: '2026-04-01', endDate: '2026-04-30'
 // FIREBASE SYNC REF
 const isRemoteUpdate = useRef(false);
 
-// --- NEW: UNDO/REDO LOGIC ---
 const saveToHistory = (newTasks) => {
 setHistoryState(prev => {
 const nextStack = prev.stack.slice(0, prev.step + 1);
 const stateStr = JSON.stringify(newTasks);
-// Avoid duplicate pushes if no actual data changed
 if (nextStack.length > 0 && nextStack[nextStack.length - 1] === stateStr) {
 return prev;
 }
@@ -210,7 +219,6 @@ return prev;
 });
 };
 
-// Keyboard Shortcuts Listener
 useEffect(() => {
 const handleKeyDown = (e) => {
 const isMod = e.ctrlKey || e.metaKey;
@@ -225,11 +233,10 @@ redo();
 };
 window.addEventListener('keydown', handleKeyDown);
 return () => window.removeEventListener('keydown', handleKeyDown);
-}, [historyState]); // Re-bind on state change to ensure fresh values
+}, [historyState]);
 
 // Setup effect hooks
 useEffect(() => {
-// FIREBASE CLOUD SYNC INITIALIZATION (COMPAT MODE)
 try {
 const firebaseConfig = {
 apiKey: "AIzaSyDBUGby8pv_YzFrED7kQm1nMydxwbzArew",
@@ -251,12 +258,14 @@ const tasksRef = db.ref('sharedData/tasks');
 window.firebaseDbRef = tasksRef;
 
 tasksRef.on('value', (snapshot) => {
+// Ignore incoming updates if the user has unsaved local changes to prevent overwriting
+if (hasUnsavedChanges && !isSessionAuthenticated) return; 
+
 const data = snapshot.val();
 isRemoteUpdate.current = true; 
 const incomingTasks = data || [];
 setTasks(incomingTasks);
 
-// Initialize history safely on the first load
 setHistoryState(prev => {
 if (prev.stack.length === 0) {
 return { stack: [JSON.stringify(incomingTasks)], step: 0 };
@@ -270,33 +279,72 @@ setLoading(false);
 console.error("Firebase Initialization Error:", error);
 setLoading(false);
 }
-}, []);
+}, [hasUnsavedChanges, isSessionAuthenticated]);
 
-// FIREBASE SAVE EFFECT (UPDATED WITH HISTORY TRACKING)
+// FIREBASE GATED SAVE EFFECT
 useEffect(() => {
 if (!loading) {
 if (isRemoteUpdate.current) {
 isRemoteUpdate.current = false;
-// Append incoming cloud changes to history to prevent accidental local wipes
 saveToHistory(tasks);
 } else {
 if (window.firebaseDbRef) {
 const cleanTasks = JSON.parse(JSON.stringify(tasks)); 
-window.firebaseDbRef.set(cleanTasks).catch(error => {
-console.error("Firebase Save Error:", error);
-showNotification("Error: Could not save to cloud.");
-});
+
+if (isSessionAuthenticated) {
+    // If authenticated, perform auto-save
+    window.firebaseDbRef.set(cleanTasks).catch(error => {
+        console.error("Firebase Save Error:", error);
+        showNotification("Error: Could not save to cloud.");
+    });
+    setHasUnsavedChanges(false);
+} else {
+    // Not authenticated - flag that changes are pending
+    setHasUnsavedChanges(true);
+}
 
 // History Tracking
 if (isUndoRedo.current) {
-isUndoRedo.current = false; // Reset blocker if we just executed an undo/redo
+    isUndoRedo.current = false; 
 } else {
-saveToHistory(cleanTasks); // Otherwise, it's a standard save. Record it!
+    saveToHistory(cleanTasks); 
 }
 }
 }
 }
-}, [tasks, loading]);
+}, [tasks, loading, isSessionAuthenticated]);
+
+// Handle Manual Sync Button
+const handleManualSync = () => {
+    if (isSessionAuthenticated) {
+        // Just force a sync to be sure
+        const cleanTasks = JSON.parse(JSON.stringify(tasks));
+        window.firebaseDbRef.set(cleanTasks);
+        setHasUnsavedChanges(false);
+        showNotification("All changes synced to cloud!");
+    } else {
+        setShowAuthModal(true);
+    }
+};
+
+const handleAuthSubmit = () => {
+    if (passwordInput === ADMIN_PASSWORD) {
+        sessionStorage.setItem('sync_auth', 'true');
+        setIsSessionAuthenticated(true);
+        setShowAuthModal(false);
+        setPasswordInput('');
+        
+        // Execute pending sync immediately
+        const cleanTasks = JSON.parse(JSON.stringify(tasks));
+        window.firebaseDbRef.set(cleanTasks);
+        setHasUnsavedChanges(false);
+        
+        showNotification("Authenticated & Changes Synced to Cloud!");
+    } else {
+        showNotification("Incorrect password. Sync failed.");
+    }
+};
+
 
 useEffect(() => {
 const handleClickOutside = (event) => {
@@ -318,7 +366,6 @@ document.addEventListener('fullscreenchange', handleFsChange);
 return () => document.removeEventListener('fullscreenchange', handleFsChange);
 }, [isFullscreen]);
 
-// --- DUAL ENGINE EXPLICIT SAVE LOGIC ---
 const saveKeys = () => {
 localStorage.setItem('gemini_api_key', geminiKey);
 localStorage.setItem('openrouter_api_key', openRouterKey);
@@ -359,7 +406,6 @@ const handleMouseUp = () => {
 if (dragState.shiftDays !== 0) {
 if (dragState.taskType === 'T + X Trigger') {
 let newOffset = dragState.initialOffset + dragState.shiftDays;
-// Snap to 5-day increments for a cleaner standardized look
 newOffset = Math.max(1, Math.round(newOffset / 5) * 5);
 
 setTasks(prevTasks => prevTasks.map(t => {
@@ -368,7 +414,7 @@ return { ...t, triggerOffset: newOffset };
 }
 return t;
 }));
-showNotification("Trigger duration snapped & updated to Cloud.");
+showNotification("Trigger duration snapped locally.");
 } else {
 let nStart = new Date(dragState.initialStart);
 let nEnd = new Date(dragState.initialEnd);
@@ -402,7 +448,7 @@ return { ...t, startDate: formatLocal(nStart), endDate: formatLocal(nEnd) };
 }
 return t;
 }));
-showNotification("Timeline snapped & updated to Cloud.");
+showNotification("Timeline snapped locally.");
 }
 }
 setDragState(null);
@@ -431,7 +477,6 @@ mode
 });
 };
 
-// Filtering & Sorting
 const processedTasks = useMemo(() => {
 let result = [...tasks];
 
@@ -478,7 +523,6 @@ return result;
 const absoluteTasks = processedTasks.filter(t => (t.scheduleType || 'Absolute Date') === 'Absolute Date');
 const triggerTasks = processedTasks.filter(t => t.scheduleType === 'T + X Trigger');
 
-// Risk Engine
 const { overdueTasks, highRiskTasks, chartData } = useMemo(() => {
 const now = new Date();
 now.setHours(0,0,0,0);
@@ -524,7 +568,6 @@ return { label: d.toLocaleString('default', { month: 'short', year: '2-digit' })
 
 const quarters = useMemo(() => [{label: 'Q1 (Apr-Jun)'}, {label: 'Q2 (Jul-Sep)'}, {label: 'Q3 (Oct-Dec)'}, {label: 'Q4 (Jan-Mar)'}], []);
 
-// Handlers
 const handleSaveTask = () => {
 if (!newTask.title) return;
 const payload = { ...newTask };
@@ -534,14 +577,14 @@ if (editingId) setTasks(tasks.map(t => t.id === editingId ? { ...payload, id: ed
 else setTasks([...tasks, { ...payload, id: generateId() }]);
 
 closeModal();
-showNotification("Task synced to cloud!");
+showNotification("Task updated locally. Please Sync to Cloud.");
 };
 
 const confirmDelete = () => {
 if (!deleteConfirmId) return;
 setTasks(tasks.filter(t => t.id !== deleteConfirmId));
 setDeleteConfirmId(null);
-showNotification("Task deleted from cloud.");
+showNotification("Task deleted locally. Please Sync to Cloud.");
 };
 
 const showNotification = (msg) => {
@@ -549,12 +592,10 @@ setNotification(msg);
 setTimeout(() => setNotification(''), 3000);
 };
 
-// --- UPDATED DUAL AI ENGINE FETCH LOGIC ---
 const fetchInsights = async (promptType) => {
 let activeKey = aiEngine === 'gemini' ? geminiKey : openRouterKey;
 let actualEngine = aiEngine;
 
-// Smart Fallback
 if (!activeKey) {
 if (aiEngine === 'gemini' && openRouterKey) { activeKey = openRouterKey; actualEngine = 'openrouter'; }
 else if (aiEngine === 'openrouter' && geminiKey) { activeKey = geminiKey; actualEngine = 'gemini'; }
@@ -617,7 +658,6 @@ setAiResponse(`### Error Fetching Insights\n\nThere was a problem communicating 
 setIsAiLoading(false);
 };
 
-// Export Logic
 const handleExport = () => {
 const dataStr = JSON.stringify(tasks, null, 2);
 const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -722,7 +762,8 @@ else merged.push(importedTask);
 });
 return merged;
 });
-showNotification("Import successful! Syncing to cloud.");
+showNotification("Import successful! Pending Sync to Cloud.");
+setHasUnsavedChanges(true); // Ensure they know they need to sync it
 } else {
 showNotification("Invalid file format.");
 }
@@ -798,7 +839,6 @@ document.head.appendChild(script);
 
 const element = containerRef.current;
 
-// --- NEW: Generate DDMMYYYY for filename ---
 const dateObj = new Date();
 const dd = String(dateObj.getDate()).padStart(2, '0');
 const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -902,12 +942,15 @@ return (
 <div>
 <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
 Compliance Workplan FY 26/27
-<span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1"><IconGlobe size={10} /> Cloud Sync Active</span>
+{isSessionAuthenticated ? (
+<span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-1"><IconGlobe size={10} /> Cloud Sync Active</span>
+) : (
+<span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1"><IconLock size={10} /> Read-Only (Local Edits)</span>
+)}
 </h1>
 <p className="text-base font-medium text-blue-600 mt-0.5">Razorpay Singapore</p>
 </div>
 
-{/* NEW: Date + Time Stamp that only renders onto the PDF */}
 {isPdfMode && (
 <div className="text-right flex flex-col justify-center pr-8">
 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Generated On</span>
@@ -921,11 +964,14 @@ Compliance Workplan FY 26/27
 {isFullscreen && (
 <div className="font-bold text-slate-700 mr-auto flex items-center gap-2">
 Compliance Workplan
-<span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-full border border-indigo-200"><IconGlobe size={8} className="inline" /> Cloud Sync</span>
+{isSessionAuthenticated ? (
+<span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full border border-green-200"><IconGlobe size={8} className="inline" /> Active</span>
+) : (
+<span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full border border-slate-200"><IconLock size={8} className="inline" /> Read-Only</span>
+)}
 </div>
 )}
 
-{/* NEW: UNDO / REDO BUTTONS */}
 <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
 <button onClick={undo} disabled={historyState.step <= 0} className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 transition-all text-slate-500 hover:text-slate-700" title="Undo (Ctrl+Z)">
 <IconUndo size={16} />
@@ -952,12 +998,23 @@ Compliance Workplan
 
 <div className="h-6 w-px bg-slate-200 mx-1 hidden xl:block"></div>
 
-<button onClick={() => setShowFilters(!showFilters)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${showFilters ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`}>
-<IconFilter size={18} /> <span className="hidden sm:inline">Filters</span>
+{/* SYNC/SAVE BUTTON */}
+<button 
+    onClick={handleManualSync} 
+    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm shrink-0
+    ${hasUnsavedChanges 
+        ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse' 
+        : isSessionAuthenticated ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'}`}
+>
+{hasUnsavedChanges ? <IconUpload size={18} /> : (isSessionAuthenticated ? <IconCheckCircle2 size={18} /> : <IconLock size={18} />)}
+<span className="hidden sm:inline">
+    {hasUnsavedChanges ? 'Sync Changes' : (isSessionAuthenticated ? 'Synced' : 'Authenticate')}
+</span>
 </button>
 
-<button onClick={handleImportClick} className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 hidden lg:flex" title="Import JSON">
-<IconUpload size={18} /> <span className="hidden sm:inline">Import</span>
+
+<button onClick={() => setShowFilters(!showFilters)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${showFilters ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`}>
+<IconFilter size={18} /> <span className="hidden sm:inline">Filters</span>
 </button>
 
 {/* Export Dropdown */}
@@ -979,6 +1036,9 @@ title="Export Options"
 <IconGlobe size={16} className="text-slate-400 shrink-0" /> Export to HTML
 </button>
 <div className="h-px bg-slate-100 my-1"></div>
+<button onClick={() => { handleImportClick(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors">
+<IconUpload size={16} className="text-slate-400 shrink-0" /> Import JSON
+</button>
 <button onClick={() => { handleExport(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors">
 <IconSave size={16} className="text-slate-400 shrink-0" /> Backup Data (JSON)
 </button>
@@ -1292,7 +1352,6 @@ onMouseDown={(e) => handleDragStart(e, task, 'resize-right')}
 <div className="flex-1 overflow-auto bg-slate-50">
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto p-2">
 
-{/* Status Overview Card */}
 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
 <h2 className="text-lg font-bold text-slate-800 w-full text-left mb-6">Status Overview</h2>
 
@@ -1332,7 +1391,6 @@ background: `conic-gradient(
 </div>
 </div>
 
-{/* Risk & Slippage Engine */}
 <div className="flex flex-col gap-6">
 
 <div className="bg-white rounded-xl shadow-sm border border-red-200 p-0 overflow-hidden flex flex-col h-full">
@@ -1556,6 +1614,36 @@ Send Custom Prompt
 )}
 </div>
 
+{/* AUTH MODAL */}
+{showAuthModal && (
+<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+<div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="bg-slate-50 p-6 border-b border-slate-100 flex flex-col items-center text-center">
+        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3">
+            <IconLock size={24} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-800">Admin Authentication</h3>
+        <p className="text-sm text-slate-500 mt-1">Enter the password to save your changes to the cloud database.</p>
+    </div>
+    <div className="p-6">
+        <input 
+            type="password" 
+            placeholder="Enter Password..."
+            className="w-full border border-slate-300 rounded-lg p-3 text-center tracking-widest focus:ring-2 focus:ring-blue-500 outline-none"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAuthSubmit()}
+            autoFocus
+        />
+        <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowAuthModal(false)} className="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
+            <button onClick={handleAuthSubmit} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-colors">Authenticate</button>
+        </div>
+    </div>
+</div>
+</div>
+)}
+
 {/* Modals and Overlays */}
 {isModalOpen && (
 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
@@ -1726,7 +1814,7 @@ showNotification("Trigger executed! Task duration applied & moved to main timeli
 <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200 p-6 text-center animate-in zoom-in-95 duration-200">
 <IconAlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
 <h3 className="text-lg font-bold text-slate-800 mb-2">Delete Task?</h3>
-<p className="text-sm text-slate-500 mb-6">Are you sure you want to delete this task? This action cannot be undone.</p>
+<p className="text-sm text-slate-500 mb-6">Are you sure you want to delete this task locally? You must still sync to cloud after.</p>
 <div className="flex justify-center gap-3">
 <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
 <button onClick={confirmDelete} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-colors">Delete Permanently</button>
