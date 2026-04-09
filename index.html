@@ -81,8 +81,16 @@ const DEPARTMENTS = ['Finance', 'Product', 'Legal', 'Risk', 'Operations', 'IT'];
 const SCHEDULE_TYPES = ['Absolute Date', 'T + X Trigger'];
 const TRIGGER_EVENTS = ['IPA', 'Final License Grant', 'Go-Live'];
 
-// SECURITY HASH (Obfuscated)
-const _chk = [114, 122, 112, 99, 109, 112, 50, 48, 50, 54].map(x => String.fromCharCode(x)).join('');
+// SECURITY HASH (One-way cyclic bitwise hash to prevent reverse-engineering from public repositories)
+const generateHash = (str) => {
+    let h = 0x12345678;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = ((h << 1) | (h >>> 31)) >>> 0;
+    }
+    return h;
+};
+const EXPECTED_HASH = 0xD1588A8C;
 
 const CLASSIFICATION_COLORS = {
 'Governance & Oversight': 'bg-purple-500', 'Risk Assessment & Framework': 'bg-red-500',
@@ -337,7 +345,7 @@ const handleManualSync = () => {
 };
 
 const handleAuthSubmit = () => {
-    if (phrase === _chk) {
+    if (generateHash(phrase) === EXPECTED_HASH) {
         sessionStorage.setItem('sync_auth', 'true');
         setIsSessionAuthenticated(true);
         setGatewayOpen(false);
@@ -1869,7 +1877,7 @@ function App() {
     const [appLockError, setAppLockError] = useState(false);
 
     const handleAppUnlock = () => {
-        if (appPassword === _chk) {
+        if (generateHash(appPassword) === EXPECTED_HASH) {
             sessionStorage.setItem('app_unlocked', 'true');
             setIsAppUnlocked(true);
         } else {
