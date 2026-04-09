@@ -1862,8 +1862,64 @@ showNotification("Trigger executed! Task moved to main timeline.");
 );
 }
 
+// --- 4. Main App Wrapper (Authentication Layer) ---
+function App() {
+    const [isAppUnlocked, setIsAppUnlocked] = useState(!!sessionStorage.getItem('app_unlocked'));
+    const [appPassword, setAppPassword] = useState('');
+    const [appLockError, setAppLockError] = useState(false);
+
+    const handleAppUnlock = () => {
+        if (appPassword === _chk) {
+            sessionStorage.setItem('app_unlocked', 'true');
+            setIsAppUnlocked(true);
+        } else {
+            setAppLockError(true);
+        }
+    };
+
+    if (!isAppUnlocked) {
+        return (
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+                
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden relative z-10 animate-in zoom-in-95 duration-300">
+                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                            <IconLock className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800">Compliance Workplan</h2>
+                        <p className="text-sm text-slate-500 mt-2">Razorpay Singapore FY 26/27</p>
+                    </div>
+                    <div className="p-6 md:p-8">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Access Password</label>
+                        <input
+                            type="password"
+                            placeholder="Enter password..."
+                            className={`w-full border ${appLockError ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300'} rounded-lg p-3 text-center tracking-widest focus:ring-2 focus:ring-blue-500 outline-none transition-colors`}
+                            value={appPassword}
+                            onChange={(e) => { setAppPassword(e.target.value); setAppLockError(false); }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAppUnlock()}
+                            autoFocus
+                        />
+                        {appLockError && <p className="text-xs text-red-500 mt-2 text-center font-medium">Incorrect password. Please try again.</p>}
+                        
+                        <button
+                            onClick={handleAppUnlock}
+                            className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm transition-colors flex items-center justify-center gap-2"
+                        >
+                            <IconUnlock className="w-5 h-5" /> Unlock Application
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return <ComplianceGantt />;
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<ComplianceGantt />);
+root.render(<App />);
 </script>
 </body>
 </html>
