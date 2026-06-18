@@ -11,6 +11,13 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+<!-- Force Babel to use the Classic runtime to avoid 'import' statement errors -->
+<script>
+    Babel.registerPreset('react-classic', {
+        presets: [[Babel.availablePresets['react'], { "runtime": "classic" }]]
+    });
+</script>
+
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
 
@@ -29,7 +36,8 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
 <body>
 <div id="root"></div>
 
-<script type="text/babel">
+<script type="text/babel" data-presets="react-classic">
+
 const { useState, useMemo, useRef, useEffect } = React;
 
 // --- 1. Inline Native SVG Icons ---
@@ -73,24 +81,18 @@ const IconHelpCircle = (p) => <SVGIcon {...p}><circle cx="12" cy="12" r="10"/><p
 const IconLock = (p) => <SVGIcon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></SVGIcon>;
 const IconUnlock = (p) => <SVGIcon {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></SVGIcon>;
 
-// --- 2. Constants ---
+const _tk = "c7148f931dd5212f31126148ca8dc9d8c12660a3b7fa822f00e298d204c4b7d2"; 
+const _v = async (p) => {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p + "x9_qL"));
+    return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+};
+
 const CLASSIFICATIONS = ['Governance & Oversight', 'Risk Assessment & Framework', 'Systems & Technology', 'Operational Processes', 'Team Training', 'Regulatory Readiness'];
 const STATUSES = ['Not Started', 'In Progress', 'Completed'];
 const DEPENDENCIES = ['RISPL', 'External'];
 const DEPARTMENTS = ['Finance', 'Product', 'Legal', 'Risk', 'Operations', 'IT'];
 const SCHEDULE_TYPES = ['Absolute Date', 'T + X Trigger'];
 const TRIGGER_EVENTS = ['IPA', 'Final License Grant', 'Go-Live'];
-
-// SECURITY HASH (One-way cyclic bitwise hash to prevent reverse-engineering from public repositories)
-const generateHash = (str) => {
-    let h = 0x12345678;
-    for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = ((h << 1) | (h >>> 31)) >>> 0;
-    }
-    return h;
-};
-const EXPECTED_HASH = 0xD1588A8C;
 
 const CLASSIFICATION_COLORS = {
 'Governance & Oversight': 'bg-purple-500', 'Risk Assessment & Framework': 'bg-red-500',
@@ -344,8 +346,10 @@ const handleManualSync = () => {
     }
 };
 
-const handleAuthSubmit = () => {
-    if (generateHash(phrase) === EXPECTED_HASH) {
+const handleAuthSubmit = async () => {
+    const inputHash = await _v(phrase);
+
+    if (inputHash === _tk) {
         sessionStorage.setItem('sync_auth', 'true');
         setIsSessionAuthenticated(true);
         setGatewayOpen(false);
@@ -361,7 +365,6 @@ const handleAuthSubmit = () => {
         showNotification("Invalid phrase. Sync aborted.");
     }
 };
-
 
 useEffect(() => {
 const handleClickOutside = (event) => {
@@ -1876,8 +1879,9 @@ function App() {
     const [appPassword, setAppPassword] = useState('');
     const [appLockError, setAppLockError] = useState(false);
 
-    const handleAppUnlock = () => {
-        if (generateHash(appPassword) === EXPECTED_HASH) {
+    const handleAppUnlock = async () => {
+        const inputHash = await _v(appPassword);
+        if (inputHash === _tk) {
             sessionStorage.setItem('app_unlocked', 'true');
             setIsAppUnlocked(true);
         } else {
